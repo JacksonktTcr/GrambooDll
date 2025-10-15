@@ -1,0 +1,197 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{4883A802-934F-46DE-829E-6C368103A3C4}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>WindowsFormsApplication5</RootNamespace>
+    <AssemblyName>WindowsFormsApplication5</AssemblyName>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="CrystalDecisions.CrystalReports.Engine, Version=10.5.3700.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL" />
+    <Reference Include="CrystalDecisions.Windows.Forms, Version=10.5.3700.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL" />
+    <Reference Include="GlassMessage, Version=3.2.0.0, Culture=neutral, PublicKeyToken=1a5642d9e18a4c5f, processorArchitecture=MSIL" />
+    <Reference Include="Microsoft.Office.Interop.Excel, Version=14.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Design" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Common.cs" />
+    <Compile Include="dgvAccounts.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Form1.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Form1.Designer.cs">
+      <DependentUpon>Form1.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Form2.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Form2.Designer.cs">
+      <DependentUpon>Form2.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmChartOfAccounts.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmChartOfAccounts.designer.cs">
+      <DependentUpon>frmChartOfAccounts.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmSalesEntry.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmSalesEntry.Designer.cs">
+      <DependentUpon>frmSalesEntry.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmSalesList.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmSalesList.Designer.cs">
+      <DependentUpon>frmSalesList.cs</DependentUpon>
+    </Compile>
+    <Compile Include="GroupMaster.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="GroupMaster.designer.cs">
+      <DependentUpon>GroupMaster.cs</DependentUpon>
+    </Compile>
+    <Compile Include="LedgerMaster.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="LedgerMaster.designer.cs">
+      <DependentUpon>LedgerMaster.cs</DependentUpon>
+    </Compile>
+    <Compile Include="MDIParent1.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MDIParent1.Designer.cs">
+      <DependentUpon>MDIParent1.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RepairEntry.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="RepairEntry.designer.cs">
+      <DependentUpon>RepairEntry.cs</DependentUpon>
+    </Compile>
+    <Compile Include="RepairEntryList.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="RepairEntryList.designer.cs">
+      <DependentUpon>RepairEntryList.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SupplierOpeningBalanceEntry.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SupplierOpeningBalanceEntry.designer.cs">
+      <DependentUpon>SupplierOpeningBalanceEntry.cs</DependentUpon>
+    </Compile>
+    <EmbeddedResource Include="Form2.resx">
+      <DependentUpon>Form2.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmChartOfAccounts.resx">
+      <DependentUpon>frmChartOfAccounts.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmSalesEntry.resx">
+      <DependentUpon>frmSalesEntry.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmSalesList.resx">
+      <DependentUpon>frmSalesList.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="GroupMaster.resx">
+      <DependentUpon>GroupMaster.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="LedgerMaster.resx">
+      <DependentUpon>LedgerMaster.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MDIParent1.resx">
+      <DependentUpon>MDIParent1.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <EmbeddedResource Include="RepairEntry.resx">
+      <DependentUpon>RepairEntry.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="RepairEntryList.resx">
+      <DependentUpon>RepairEntryList.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SupplierOpeningBalanceEntry.resx">
+      <DependentUpon>SupplierOpeningBalanceEntry.cs</DependentUpon>
+    </EmbeddedResource>
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\gramboo\Gramboo.csproj">
+      <Project>{0d3b5ef1-72f6-429d-aab6-e3023fccb04e}</Project>
+      <Name>Gramboo</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\WinFormsUI\WinFormsUI.csproj">
+      <Project>{C75532C4-765B-418E-B09B-46D36B2ABDB1}</Project>
+      <Name>WinFormsUI</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

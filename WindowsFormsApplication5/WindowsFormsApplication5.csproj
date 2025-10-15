@@ -1,0 +1,333 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{4883A802-934F-46DE-829E-6C368103A3C4}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>WindowsFormsApplication5</RootNamespace>
+    <AssemblyName>WindowsFormsApplication5</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>WindowsFormsApplication5.Program</StartupObject>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="CrystalDecisions.CrystalReports.Engine, Version=13.0.2000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <HintPath>C:\Program Files (x86)\SAP BusinessObjects\Crystal Reports for .NET Framework 4.0\Common\SAP BusinessObjects Enterprise XI 4.0\win32_x86\dotnet\CrystalDecisions.CrystalReports.Engine.dll</HintPath>
+    </Reference>
+    <Reference Include="CrystalDecisions.Windows.Forms, Version=13.0.2000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <HintPath>C:\Program Files (x86)\SAP BusinessObjects\Crystal Reports for .NET Framework 4.0\Common\SAP BusinessObjects Enterprise XI 4.0\win32_x86\dotnet\CrystalDecisions.Windows.Forms.dll</HintPath>
+    </Reference>
+    <Reference Include="GlassMessage, Version=3.2.0.0, Culture=neutral, PublicKeyToken=1a5642d9e18a4c5f, processorArchitecture=MSIL" />
+    <Reference Include="Microsoft.Office.Interop.Excel, Version=14.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Design" />
+    <Reference Include="System.Management" />
+    <Reference Include="System.Transactions" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AddNewMasterData.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="AddNewMasterData.designer.cs">
+      <DependentUpon>AddNewMasterData.cs</DependentUpon>
+    </Compile>
+    <Compile Include="AdjustmentEntries.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AdjustmentEntries.designer.cs">
+      <DependentUpon>AdjustmentEntries.cs</DependentUpon>
+    </Compile>
+    <Compile Include="AllNextPage.cs" />
+    <Compile Include="CashTransactionEntry.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="CashTransactionEntry.designer.cs">
+      <DependentUpon>CashTransactionEntry.cs</DependentUpon>
+    </Compile>
+    <Compile Include="CashTransactionEntryList.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="CashTransactionEntryList.designer.cs">
+      <DependentUpon>CashTransactionEntryList.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common.cs" />
+    <Compile Include="ConfigureServers.cs" />
+    <Compile Include="CustomerSearch.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="CustomerSearch.designer.cs">
+      <DependentUpon>CustomerSearch.cs</DependentUpon>
+    </Compile>
+    <Compile Include="dgvAccounts.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="FindByVoucherNo.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="FindByVoucherNo.Designer.cs" />
+    <Compile Include="Form5.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Form5.Designer.cs">
+      <DependentUpon>Form5.cs</DependentUpon>
+    </Compile>
+    <Compile Include="checkdgv.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="checkdgv.Designer.cs">
+      <DependentUpon>checkdgv.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmCustomerMasterr.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmCustomerMasterr.designer.cs">
+      <DependentUpon>frmCustomerMasterr.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmLotEntry.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmLotEntry.designer.cs">
+      <DependentUpon>frmLotEntry.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FrmLotEntryList.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FrmLotEntryList.designer.cs">
+      <DependentUpon>FrmLotEntryList.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FrmPurchaseOrnamentsEntrySafa.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FrmPurchaseOrnamentsEntrySafa.designer.cs">
+      <DependentUpon>FrmPurchaseOrnamentsEntrySafa.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FrmSalesReturnEntry.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FrmSalesReturnEntry.designer.cs">
+      <DependentUpon>FrmSalesReturnEntry.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FrmSchemePaymentEntry.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FrmSchemePaymentEntry.designer.cs">
+      <DependentUpon>FrmSchemePaymentEntry.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmServerSetting.cs" />
+    <Compile Include="GrbTreeview.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="LedgerSearch.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="LedgerSearch.designer.cs">
+      <DependentUpon>LedgerSearch.cs</DependentUpon>
+    </Compile>
+    <Compile Include="MDIParent1.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MDIParent1.Designer.cs">
+      <DependentUpon>MDIParent1.cs</DependentUpon>
+    </Compile>
+    <Compile Include="MetalRate.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MetalRate.designer.cs">
+      <DependentUpon>MetalRate.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Printer.cs" />
+    <Compile Include="ProductViewer.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="ProductViewer.designer.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="PurchaseEntry.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="PurchaseEntry.designer.cs">
+      <DependentUpon>PurchaseEntry.cs</DependentUpon>
+    </Compile>
+    <Compile Include="PurchaseEntryList.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="PurchaseEntryList.designer.cs">
+      <DependentUpon>PurchaseEntryList.cs</DependentUpon>
+    </Compile>
+    <Compile Include="PurchaseOrnamentsList.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="PurchaseOrnamentsList.designer.cs">
+      <DependentUpon>PurchaseOrnamentsList.cs</DependentUpon>
+    </Compile>
+    <Compile Include="RefreshButton.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="RefreshButton.designer.cs">
+      <DependentUpon>RefreshButton.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SearchButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="ServerConfigHandler.cs" />
+    <Compile Include="test.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="test.Designer.cs">
+      <DependentUpon>test.cs</DependentUpon>
+    </Compile>
+    <Compile Include="ToWords.cs" />
+    <Compile Include="Treeview.cs" />
+    <Compile Include="VoucherTypes.cs" />
+    <Compile Include="WrapperImpersonationContext.cs" />
+    <EmbeddedResource Include="AddNewMasterData.resx">
+      <DependentUpon>AddNewMasterData.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="AdjustmentEntries.resx">
+      <DependentUpon>AdjustmentEntries.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="CashTransactionEntry.resx">
+      <DependentUpon>CashTransactionEntry.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="CashTransactionEntryList.resx">
+      <DependentUpon>CashTransactionEntryList.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="CustomerSearch.resx">
+      <DependentUpon>CustomerSearch.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FindByVoucherNo.resx" />
+    <EmbeddedResource Include="Form5.resx">
+      <DependentUpon>Form5.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="checkdgv.resx">
+      <DependentUpon>checkdgv.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmCustomerMasterr.resx">
+      <DependentUpon>frmCustomerMasterr.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmLotEntry.resx">
+      <DependentUpon>frmLotEntry.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FrmLotEntryList.resx">
+      <DependentUpon>FrmLotEntryList.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FrmPurchaseOrnamentsEntrySafa.resx">
+      <DependentUpon>FrmPurchaseOrnamentsEntrySafa.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmRemoteFolderDialouge.resx" />
+    <EmbeddedResource Include="FrmSalesReturnEntry.resx">
+      <DependentUpon>FrmSalesReturnEntry.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FrmSchemePaymentEntry.resx">
+      <DependentUpon>FrmSchemePaymentEntry.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="LedgerSearch.resx">
+      <DependentUpon>LedgerSearch.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MDIParent1.resx">
+      <DependentUpon>MDIParent1.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MetalRate.resx">
+      <DependentUpon>MetalRate.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ProductViewer.resx" />
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+    </Compile>
+    <EmbeddedResource Include="PurchaseEntry.resx">
+      <DependentUpon>PurchaseEntry.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="PurchaseEntryList.resx">
+      <DependentUpon>PurchaseEntryList.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="PurchaseOrnamentsList.resx">
+      <DependentUpon>PurchaseOrnamentsList.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="RefreshButton.resx">
+      <DependentUpon>RefreshButton.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="test.resx">
+      <DependentUpon>test.cs</DependentUpon>
+    </EmbeddedResource>
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\gramboo\Gramboo.csproj">
+      <Project>{0d3b5ef1-72f6-429d-aab6-e3023fccb04e}</Project>
+      <Name>Gramboo</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\WinFormsUI\WinFormsUI.csproj">
+      <Project>{C75532C4-765B-418E-B09B-46D36B2ABDB1}</Project>
+      <Name>WinFormsUI</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Service References\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="NewFolder1\" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

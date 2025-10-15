@@ -1,0 +1,477 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>9.0.21022</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{0D3B5EF1-72F6-429D-AAB6-E3023FCCB04E}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Gramboo</RootNamespace>
+    <AssemblyName>Gramboo</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <UpgradeBackupLocation>
+    </UpgradeBackupLocation>
+    <OldToolsVersion>3.5</OldToolsVersion>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>false</SignAssembly>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>Gramboo.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="ClosedXML, Version=0.95.4.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\ClosedXML.0.95.4\lib\net46\ClosedXML.dll</HintPath>
+    </Reference>
+    <Reference Include="CrystalDecisions.CrystalReports.Engine, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL" />
+    <Reference Include="CrystalDecisions.ReportSource, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL" />
+    <Reference Include="CrystalDecisions.Shared, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL" />
+    <Reference Include="CrystalDecisions.Windows.Forms, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL" />
+    <Reference Include="DocumentFormat.OpenXml, Version=2.7.2.0, Culture=neutral, PublicKeyToken=8fb06cb64d019a17, processorArchitecture=MSIL">
+      <HintPath>..\packages\DocumentFormat.OpenXml.2.7.2\lib\net46\DocumentFormat.OpenXml.dll</HintPath>
+    </Reference>
+    <Reference Include="ExcelNumberFormat, Version=1.0.10.0, Culture=neutral, PublicKeyToken=23c6f5d73be07eca, processorArchitecture=MSIL">
+      <HintPath>..\packages\ExcelNumberFormat.1.0.10\lib\net20\ExcelNumberFormat.dll</HintPath>
+    </Reference>
+    <Reference Include="FlashControlV71, Version=1.0.3187.32366, Culture=neutral, PublicKeyToken=692fbea5521e1304" />
+    <Reference Include="GlassMessage">
+      <HintPath>..\..\..\FA\SimpleFA - 2019\FA\bin\Debug\GlassMessage.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
+    <Reference Include="System.configuration" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Design" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.IO.FileSystem.Primitives, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.IO.FileSystem.Primitives.4.0.1\lib\net46\System.IO.FileSystem.Primitives.dll</HintPath>
+      <Private>True</Private>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.IO.Packaging, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.IO.Packaging.4.0.0\lib\net46\System.IO.Packaging.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Security" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.Services" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+    <Reference Include="WeifenLuo.WinFormsUI.Docking, Version=2.8.0.0, Culture=neutral, PublicKeyToken=5cded1a1a0a7b481, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>bin\Debug\WeifenLuo.WinFormsUI.Docking.dll</HintPath>
+    </Reference>
+    <Reference Include="WindowsBase" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="ConfigureServers.cs" />
+    <Compile Include="Connection.cs" />
+    <Compile Include="Controls\ChildGrid.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\ControlExtension.cs" />
+    <Compile Include="Controls\FilterForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\frmAuth.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\frmAuth.Designer.cs">
+      <DependentUpon>frmAuth.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\FullscreenViewer.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\FullscreenViewer.Designer.cs">
+      <DependentUpon>FullscreenViewer.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\Print\DataGridPrintDocument.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\Print\DataGridPrintOptions.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\Print\DataGridPrintOptions.designer.cs">
+      <DependentUpon>DataGridPrintOptions.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\Print\GridDotMetPrintDocument.cs" />
+    <Compile Include="Controls\frmGroupOptions.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\frmGroupOptions.Designer.cs">
+      <DependentUpon>frmGroupOptions.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\GrbGridReport.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\GrbGridReport.Designer.cs">
+      <DependentUpon>GrbGridReport.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\GrbReport.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\GrbReport.Designer.cs">
+      <DependentUpon>GrbReport.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\GridRowComparer.cs" />
+    <Compile Include="Controls\HrGrid\DataGridSource.cs" />
+    <Compile Include="Controls\HrGrid\HierarchicalGrid.cs" />
+    <Compile Include="Controls\HrGrid\HierarchicalGridCell.cs" />
+    <Compile Include="Controls\HrGrid\HierarchicalGridEvents.cs" />
+    <Compile Include="Controls\HrGrid\HierarchicalGridNode.cs" />
+    <Compile Include="Controls\HrGrid\HierarchicalGridNodeCollection.cs" />
+    <Compile Include="Controls\OutlookGrid\DataSourceManager.cs" />
+    <Compile Include="Controls\OutlookGrid\OutlookGrid.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\OutlookGrid\OutlookGrid.Designer.cs">
+      <DependentUpon>OutlookGrid.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\OutlookGrid\OutlookGridGroup.cs" />
+    <Compile Include="Controls\OutlookGrid\OutlookGridRow.cs" />
+    <Compile Include="Controls\ReadOnlyTextBox.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\ReportGridConfig.cs" />
+    <Compile Include="Controls\SummaryControlContainer.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\CueProvider.cs" />
+    <Compile Include="Controls\Database\Column.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\Database\Columns.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\Database\DefaultValueEventArgs.cs" />
+    <Compile Include="Controls\Database\Row.cs" />
+    <Compile Include="Controls\Database\Table.cs" />
+    <Compile Include="Controls\Enumeration\EnumString.cs" />
+    <Compile Include="Controls\GrbButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\GrbButton.Designer.cs">
+      <DependentUpon>GrbButton.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\GrbCheckBox.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\GrbCheckBox.Designer.cs">
+      <DependentUpon>GrbCheckBox.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\GrbComboBox.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\GrbComboBox.Designer.cs">
+      <DependentUpon>GrbComboBox.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\GrbDTPicker.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\GrbDTPicker.Designer.cs">
+      <DependentUpon>GrbDTPicker.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\GrbForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\GrbForm.Designer.cs">
+      <DependentUpon>GrbForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\GrbPictureBox.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\GrbRadioButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\GrbRadioButton.Designer.cs">
+      <DependentUpon>GrbRadioButton.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\GrbTextBox.cs">
+      <CustomToolNamespace>Gramboo.Controls</CustomToolNamespace>
+      <Generator>GrambooTextBox</Generator>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\GrbTextBox.Designer.cs">
+      <DependentUpon>GrbTextBox.cs</DependentUpon>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Controls\GrbToolTip.cs" />
+    <Compile Include="Controls\IDataBinding.cs" />
+    <Compile Include="Controls\ImageViewer\DoubleBufferedPanel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\ImageViewer\DoubleBufferedPanel.Designer.cs">
+      <DependentUpon>DoubleBufferedPanel.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\ImageViewer\GifImage.cs" />
+    <Compile Include="Controls\ImageViewer\KP-DrawEngine.cs" />
+    <Compile Include="Controls\ImageViewer\KP-DrawObject.cs" />
+    <Compile Include="Controls\ImageViewer\KP-ImageViewerV2.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\ImageViewer\KP-ImageViewerV2.designer.cs">
+      <DependentUpon>KP-ImageViewerV2.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\ImageViewer\MultiPageImage.cs" />
+    <Compile Include="Controls\InputBox.cs" />
+    <Compile Include="Controls\IVisualStyles.cs" />
+    <Compile Include="Controls\GrbRadioButtonGroup.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\GrbRadioButtonGroup.Designer.cs">
+      <DependentUpon>GrbRadioButtonGroup.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\NumericComparer.cs" />
+    <Compile Include="Controls\Popup\ComboBox.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\Popup\ComboBox.Designer.cs" />
+    <Compile Include="Controls\Popup\GripBounds.cs" />
+    <Compile Include="Controls\ImageProcessor.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\ImageProcessor.Designer.cs">
+      <DependentUpon>ImageProcessor.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\Popup\NativeMethods.cs" />
+    <Compile Include="Controls\Popup\Popup.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\Popup\Popup.Designer.cs" />
+    <Compile Include="Controls\Popup\PopupAnimations.cs" />
+    <Compile Include="Controls\Popup\PopupComboBox.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\Popup\PopupComboBox.Designer.cs" />
+    <Compile Include="Controls\StringLogicalComparer.cs" />
+    <Compile Include="Controls\temp.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\temp.Designer.cs">
+      <DependentUpon>temp.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\TextHelper.cs" />
+    <Compile Include="Controls\ThemeSetting.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\ThemeSetting.designer.cs">
+      <DependentUpon>ThemeSetting.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Docking\DockHelper.cs" />
+    <Compile Include="Docking\Extender.cs" />
+    <Compile Include="Docking\InertButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Docking\Resources.Designer.cs" />
+    <Compile Include="Docking\Strings.Designer.cs" />
+    <Compile Include="Docking\VS2003AutoHideStrip.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Docking\VS2003DockPaneCaption.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Docking\VS2003DockPaneStrip.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="frmDatabaseSettings1.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmDatabaseSettings1.Designer.cs">
+      <DependentUpon>frmDatabaseSettings1.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmHistory.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmHistory.Designer.cs">
+      <DependentUpon>frmHistory.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmODBC.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmODBC.Designer.cs">
+      <DependentUpon>frmODBC.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmServerSetting.cs" />
+    <Compile Include="frmWebViewer.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmWebViewer.Designer.cs">
+      <DependentUpon>frmWebViewer.cs</DependentUpon>
+    </Compile>
+    <Compile Include="General.cs" />
+    <Compile Include="Cryptography.cs" />
+    <Compile Include="DataController.cs" />
+    <Compile Include="frmDatabaseSettings.cs" />
+    <Compile Include="Controls\GrbDataGridView.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\GrbDataGridView.Designer.cs">
+      <DependentUpon>GrbDataGridView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="GrbConfig.cs" />
+    <Compile Include="MyConfigHandler.cs" />
+    <Compile Include="ODBCManager.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="ServerConfigHandler.cs" />
+    <Compile Include="Theme\FontNameConverter.cs" />
+    <Compile Include="Theme\FontSizeConverter.cs" />
+    <Compile Include="Theme\Serializer.cs" />
+    <Compile Include="Theme\Themes.cs" />
+    <Compile Include="Theme\Xmlcolor.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Controls\frmAuth.resx">
+      <DependentUpon>frmAuth.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\FullscreenViewer.resx">
+      <DependentUpon>FullscreenViewer.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\Print\DataGridPrintOptions.resx">
+      <DependentUpon>DataGridPrintOptions.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\frmGroupOptions.resx">
+      <DependentUpon>frmGroupOptions.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\GrbForm.resx">
+      <DependentUpon>GrbForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\GrbGridReport.resx">
+      <DependentUpon>GrbGridReport.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\GrbReport.resx">
+      <DependentUpon>GrbReport.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\GrbTextBox.resx">
+      <DependentUpon>GrbTextBox.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ImageProcessor.resx">
+      <DependentUpon>ImageProcessor.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ImageViewer\KP-ImageViewerV2.resx">
+      <DependentUpon>KP-ImageViewerV2.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ThemeSetting.resx">
+      <DependentUpon>ThemeSetting.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Docking\Resources.resx" />
+    <EmbeddedResource Include="Docking\Strings.resx" />
+    <EmbeddedResource Include="frmHistory.resx">
+      <DependentUpon>frmHistory.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmODBC.resx">
+      <DependentUpon>frmODBC.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmWebViewer.resx">
+      <DependentUpon>frmWebViewer.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <SubType>Designer</SubType>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.Config" />
+    <None Include="Gramboo.pfx" />
+    <None Include="Gramboo.snk" />
+    <None Include="packages.config" />
+    <None Include="Resources\1370262117_Setting.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\1373121213_type_1_font.bmp" />
+    <Content Include="Controls\Button Images\Focus.png" />
+    <Content Include="Controls\Button Images\MouseDown.png" />
+    <Content Include="Controls\Button Images\Normal.png" />
+    <Content Include="Controls\Button Images\Selected.png" />
+    <None Include="Resources\Focus.png" />
+    <None Include="Resources\MouseDown.png" />
+    <None Include="Resources\Normal.png" />
+    <None Include="Resources\Selected.png" />
+    <None Include="Resources\1370519274_DeleteRed.png" />
+    <None Include="Resources\1376076034_edit.png" />
+    <None Include="Resources\1376859127_Office-Excel-icon.png" />
+    <None Include="Resources\1376861431_sort-ascend.png" />
+    <None Include="Resources\1376861441_sort-descend.png" />
+    <None Include="Resources\1414750383_icon-ios7-arrow-back-128.png" />
+    <None Include="Resources\1414750372_icon-ios7-arrow-forward-128.png" />
+    <Content Include="Resources\arrow_down.png" />
+    <Content Include="Resources\arrow_up.png" />
+    <None Include="Resources\DeleteRed.png" />
+    <None Include="Resources\phoca_thumb_l_no_image.gif" />
+    <None Include="Resources\btnBack.png" />
+    <None Include="Resources\btnDrag.png" />
+    <None Include="Resources\btnFitToScreen.png" />
+    <None Include="Resources\btnNext.png" />
+    <None Include="Resources\btnOpen.png" />
+    <None Include="Resources\btnPreview.png" />
+    <None Include="Resources\btnRotate90.png" />
+    <None Include="Resources\btnRotate270.png" />
+    <None Include="Resources\btnSelect.png" />
+    <None Include="Resources\btnZoomIn.png" />
+    <None Include="Resources\btnZoomOut.png" />
+    <None Include="Resources\Reports.ico" />
+    <None Include="Resources\Filter.ico" />
+    <None Include="Resources\Columns.ico" />
+    <None Include="Resources\print.png" />
+    <Content Include="Resources\TextBoxIcon.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WinFormsUI\WinFormsUI.csproj">
+      <Project>{c75532c4-765b-418e-b09b-46d36b2abdb1}</Project>
+      <Name>WinFormsUI</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
