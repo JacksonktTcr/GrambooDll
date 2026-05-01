@@ -4,165 +4,147 @@ using System.Collections;
 using System.Windows.Forms;
 using System.Drawing;
 using System.Collections.Generic;
-
+using System.Linq;
 
 namespace Gramboo.Controls
 {
-  
-  
     public class SummaryControlContainer : Control
     {
+        #region Fields
 
-        #region Declare variables
-        private Hashtable sumBoxHash;
-        private GrbDataGridView  dgv;
-        private Label sumRowHeaderLabel;
-        private SummaryCellCollection _SummaryCells=new SummaryCellCollection(); 
+        private readonly Dictionary<DataGridViewColumn, ReadOnlyTextBox> sumBoxMap;
+        private readonly GrbDataGridView dgv;
+        private readonly Label sumRowHeaderLabel;
+        private SummaryCellCollection _summaryCells = new SummaryCellCollection();
 
         private int initialHeight;
+        private bool lastVisibleState;
+        private Color summaryRowBackColor;
+        
+        // Performance optimization: cache summary totals
+        private readonly Dictionary<int, decimal> summaryCache = new Dictionary<int, decimal>();
+        private bool cacheValid = false;
+
+        #endregion
+
+        #region Properties
+
         public int InitialHeight
         {
             get { return initialHeight; }
             set { initialHeight = value; }
         }
 
-        private bool lastVisibleState;
         public bool LastVisibleState
         {
             get { return lastVisibleState; }
             set { lastVisibleState = value; }
-        }        
+        }
 
-        private Color summaryRowBackColor;       
         public Color SummaryRowBackColor
         {
             get { return summaryRowBackColor; }
-            set { summaryRowBackColor = value;}
+            set { summaryRowBackColor = value; }
         }
 
         public SummaryCellCollection SummaryCells
         {
-            get
-            {
-                return _SummaryCells;
-            }
-            set
-            {
-                _SummaryCells = value;
-            }
+            get { return _summaryCells; }
+            set { _summaryCells = value ?? new SummaryCellCollection(); }
         }
 
-        /// <summary>
-        /// Event is raised when visibility changes and the
-        /// lastVisibleState is not the new visible state
-        /// </summary>
-        public event EventHandler VisibilityChanged;
+        // ✅ NEW: Public wrapper method for safe summary cell access
+        public string GetTextOrZero(string columnName)
+        {
+            if (_summaryCells != null)
+                return _summaryCells.GetTextOrZero(columnName);
+            return "0";
+        }
+
+        public event EventHandler SummaryVisibilityChanged;
 
         #endregion
 
-        #region Constructors
+        #region Constructor
 
         public SummaryControlContainer(GrbDataGridView dgv)
         {
             if (dgv == null)
-                throw new Exception("DataGridView is null!");
+                throw new ArgumentNullException(nameof(dgv));
 
             this.dgv = dgv;
+            this.sumBoxMap = new Dictionary<DataGridViewColumn, ReadOnlyTextBox>();
+            this.sumRowHeaderLabel = new Label();
 
-            sumBoxHash = new Hashtable();
-            sumRowHeaderLabel = new Label();
+            // Subscribe to events
+            this.dgv.CellValueChanged += dgv_CellValueChanged;
+            this.dgv.Scroll += dgv_Scroll;
+            this.dgv.ColumnWidthChanged += dgv_ColumnWidthChanged;
+            this.dgv.RowHeadersWidthChanged += dgv_RowHeadersWidthChanged;
+            this.dgv.ColumnStateChanged += dgv_ColumnStateChanged;
+            this.dgv.Resize += dgv_Resize;
+            
+            // ✅ NEW: Cache invalidation events
+            this.dgv.DataSourceChanged += dgv_DataSourceChanged;
+            this.dgv.RowsAdded += dgv_RowsAdded;
+            this.dgv.RowsRemoved += dgv_RowsRemoved;
+            this.dgv.UserDeletingRow += dgv_UserDeletingRow;
 
-
-            //this.dgv.CreateSummary += new EventHandler(dgv_CreateSummary);
-            //this.dgv.RowsAdded += new DataGridViewRowsAddedEventHandler(dgv_RowsAdded);
-            //this.dgv.RowsRemoved += new DataGridViewRowsRemovedEventHandler(dgv_RowsRemoved);
-            this.dgv.CellValueChanged += new DataGridViewCellEventHandler(dgv_CellValueChanged);
-
-            this.dgv.Scroll += new ScrollEventHandler(dgv_Scroll);
-            this.dgv.ColumnWidthChanged += new DataGridViewColumnEventHandler(dgv_ColumnWidthChanged);
-            this.dgv.RowHeadersWidthChanged += new EventHandler(dgv_RowHeadersWidthChanged);
-            this.VisibleChanged += new EventHandler(SummaryControlContainer_VisibleChanged);
-
-            //this.dgv.ColumnAdded += new DataGridViewColumnEventHandler(dgv_ColumnAdded);
-            //this.dgv.ColumnRemoved += new DataGridViewColumnEventHandler(dgv_ColumnRemoved);
-            this.dgv.ColumnStateChanged += new DataGridViewColumnStateChangedEventHandler(dgv_ColumnStateChanged);
-            //this.dgv.ColumnDisplayIndexChanged += new DataGridViewColumnEventHandler(dgv_ColumnDisplayIndexChanged);
-    
-        }
-
-         
-      
-
-  
-
-
-        private void dgv_ColumnDisplayIndexChanged(object sender, DataGridViewColumnEventArgs e)
-        {
-            //resizeSumBoxes();
-            //reCreateSumBoxes();
-        }
-
-        private void dgv_ColumnStateChanged(object sender, DataGridViewColumnStateChangedEventArgs e)
-        {
-            resizeSumBoxes();
-        }
-
-        //private void dgv_ColumnRemoved(object sender, DataGridViewColumnEventArgs e)
-        //{
-        //    reCreateSumBoxes();
-        //}
-
-        //private void dgv_ColumnAdded(object sender, DataGridViewColumnEventArgs e)
-        //{
-        //    reCreateSumBoxes();
-        //}
-
-        private void dgv_CellValueChanged(object sender, DataGridViewCellEventArgs e)
-        {
-
-            ReadOnlyTextBox roTextBox = (ReadOnlyTextBox)sumBoxHash[dgv.Columns[e.ColumnIndex]];
-            if (roTextBox != null)
-            {
-                if (roTextBox.IsSummary)
-                    calcSummaries();
-            }
-        }
-
-        //private void dgv_RowsAdded(object sender, DataGridViewRowsAddedEventArgs e)
-        //{
-        //    calcSummaries();
-        //}
-
-        //private void dgv_RowsRemoved(object sender, DataGridViewRowsRemovedEventArgs e)
-        //{
-        //    calcSummaries();
-        //}
-
-        private void SummaryControlContainer_VisibleChanged(object sender, EventArgs e)
-        {
-            if (lastVisibleState != this.Visible)
-            {
-                OnVisiblityChanged(sender, e);
-            }
-        }
-
-        protected void OnVisiblityChanged(object sender, EventArgs e)
-        {
-            if (VisibilityChanged != null)
-                VisibilityChanged(sender, e);
-
-            lastVisibleState = this.Visible;
+            this.VisibleChanged += SummaryControlContainer_VisibleChanged;
         }
 
         #endregion
 
-        #region Events and delegates
+        #region Dispose
 
-        //private void dgv_CreateSummary(object sender, EventArgs e)
-        //{
-        //    reCreateSumBoxes();
-        //    calcSummaries();
-        //}
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (dgv != null)
+                {
+                    dgv.CellValueChanged -= dgv_CellValueChanged;
+                    dgv.Scroll -= dgv_Scroll;
+                    dgv.ColumnWidthChanged -= dgv_ColumnWidthChanged;
+                    dgv.RowHeadersWidthChanged -= dgv_RowHeadersWidthChanged;
+                    dgv.ColumnStateChanged -= dgv_ColumnStateChanged;
+                    dgv.Resize -= dgv_Resize;
+                    
+                    // ✅ NEW: Unsubscribe from cache invalidation events
+                    dgv.DataSourceChanged -= dgv_DataSourceChanged;
+                    dgv.RowsAdded -= dgv_RowsAdded;
+                    dgv.RowsRemoved -= dgv_RowsRemoved;
+                    dgv.UserDeletingRow -= dgv_UserDeletingRow;
+                }
+
+                this.VisibleChanged -= SummaryControlContainer_VisibleChanged;
+                
+                // Clear cache
+                summaryCache.Clear();
+            }
+
+            base.Dispose(disposing);
+        }
+
+        #endregion
+
+        #region Event handlers
+
+        private void dgv_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0)
+                return;
+
+            DataGridViewColumn column = dgv.Columns[e.ColumnIndex];
+
+            ReadOnlyTextBox roTextBox;
+            if (sumBoxMap.TryGetValue(column, out roTextBox) && roTextBox != null && roTextBox.IsSummary)
+            {
+                // Invalidate cache and recalculate only affected column
+                cacheValid = false;
+                calcSingleColumnSummary(column);
+            }
+        }
 
         private void dgv_Scroll(object sender, ScrollEventArgs e)
         {
@@ -179,9 +161,8 @@ namespace Gramboo.Controls
             resizeSumBoxes();
         }
 
-        protected override void OnResize(EventArgs e)
+        private void dgv_ColumnStateChanged(object sender, DataGridViewColumnStateChangedEventArgs e)
         {
-            base.OnResize(e);
             resizeSumBoxes();
         }
 
@@ -190,358 +171,652 @@ namespace Gramboo.Controls
             resizeSumBoxes();
         }
 
-        #endregion
-
-        #region Functions
-
-        /// <summary>
-        /// Checks if passed object is of type of integer
-        /// </summary>
-        /// <param name="o">object</param>
-        /// <returns>true/ false</returns>
-        protected bool IsInteger(object o)
+        private void SummaryControlContainer_VisibleChanged(object sender, EventArgs e)
         {
-            if (o is Int64)
-                return true;
-            if (o is Int32)
-                return true;
-            if (o is Int16)
-                return true;
-            return false;
+            if (lastVisibleState != this.Visible)
+            {
+                OnSummaryVisibilityChanged(sender, e);
+            }
         }
 
-        /// <summary>
-        /// Checks if passed object is of type of decimal/ double
-        /// </summary>
-        /// <param name="o">object</param>
-        /// <returns>true/ false</returns>
-        protected bool IsDecimal(object o)
+        protected virtual void OnSummaryVisibilityChanged(object sender, EventArgs e)
         {
-            if (o is Decimal)
-                return true;
-            if (o is Single)
-                return true;
-            if (o is Double)
-                return true;
-            return false;
+            SummaryVisibilityChanged?.Invoke(sender, e);
+            lastVisibleState = this.Visible;
         }
 
-        /// <summary>
-        /// Enable manual refresh of the SummaryDataGridView
-        /// </summary>
-        internal void RefreshSummary(bool ReCreateSummary=false)
+        protected override void OnResize(EventArgs e)
         {
-            if (dgv.SummaryRowVisible == false)
-                return;
-            if (ReCreateSummary)
-            {
-                reCreateSumBoxes();
-            }
-            calcSummaries();
-        }
-
-        /// <summary>
-        /// Calculate the Sums of the summary columns
-        /// </summary>
-        private void calcSummaries()
-        {
-            if (dgv.SummaryRowVisible == false)
-                return;
-
-            foreach (ReadOnlyTextBox roTextBox in sumBoxHash.Values)
-            {
-                if (roTextBox.IsSummary)
-                {
-                    roTextBox.Tag = 0;
-                    roTextBox.Text = "0";
-                    roTextBox.Invalidate();
-                }
-            }
-
-
-            if (dgv.SummaryColumns != null && dgv.SummaryColumns.Length > 0 && sumBoxHash.Count > 0)
-            {
-
-                foreach (DataGridViewRow dgvRow in dgv.Rows)
-                {
-                    foreach (DataGridViewCell dgvCell in dgvRow.Cells)
-                    {
-                        foreach (DataGridViewColumn dgvColumn in sumBoxHash.Keys)
-                        {
-                            if (dgvCell.OwningColumn.Equals(dgvColumn))
-                            {
-                                ReadOnlyTextBox sumBox = (ReadOnlyTextBox)sumBoxHash[dgvColumn];
-
-                                if (sumBox != null && sumBox.IsSummary)
-                                {
-                                    if (dgvCell.Value != null && !(dgvCell.Value is DBNull))
-                                    {
-                                        if (IsInteger(dgvCell.Value))
-                                        {
-                                            sumBox.Tag = Convert.ToInt64(sumBox.Tag) + Convert.ToInt64(dgvCell.Value);
-                                        }
-                                        else if (IsDecimal(dgvCell.Value))
-                                        {
-                                            sumBox.Tag = Convert.ToDecimal(sumBox.Tag) + Convert.ToDecimal(dgvCell.Value);
-                                        }
-
-                                        sumBox.Text = string.Format("{0}", sumBox.Tag);
-                                        sumBox.Invalidate();
-                                    }
-                                }
-                            }
-                        }
-                    }
-                   
-                }
-                dgv.OnSummaryCalculated(dgv, new EventArgs());
-            }
-
-        }
-
-
-        
-
-        /// <summary>
-        /// Create summary boxes for each Column of the DataGridView        
-        /// </summary>
-        public  void reCreateSumBoxes()
-        {
-            ReadOnlyTextBox sumBox;
-            if (dgv.SummaryRowVisible == false)
-                return;
-            foreach (Control control in sumBoxHash.Values)
-            {
-                this.Controls.Remove(control);
-            }
-            sumBoxHash.Clear();
-            _SummaryCells.Clear();
-
-            if (dgv.DisplaySumRowHeader)
-            {
-                sumRowHeaderLabel.Font = new Font(dgv.DefaultCellStyle.Font, dgv.SumRowHeaderTextBold ? FontStyle.Bold : FontStyle.Regular);
-                sumRowHeaderLabel.Anchor = AnchorStyles.Left;
-                sumRowHeaderLabel.TextAlign = ContentAlignment.MiddleLeft;
-                sumRowHeaderLabel.Height = sumRowHeaderLabel.Font.Height;
-                sumRowHeaderLabel.Top = Convert.ToInt32(Convert.ToDouble(this.InitialHeight - sumRowHeaderLabel.Height) / 2F);
-                sumRowHeaderLabel.Text = dgv.SumRowHeaderText;
-
-                sumRowHeaderLabel.ForeColor = dgv.DefaultCellStyle.ForeColor;
-                sumRowHeaderLabel.Margin = new Padding(0);
-                sumRowHeaderLabel.Padding = new Padding(0);
-                sumRowHeaderLabel.TabIndex = 0;
-
-                this.Controls.Add(sumRowHeaderLabel);
-            }
-            int iCnt = 0;
-
-            List<DataGridViewColumn> sortedColumns = SortedColumns;
-            foreach (DataGridViewColumn dgvColumn in sortedColumns)
-            {
-                if (dgvColumn.Name != "col_MoveUp" && dgvColumn.Name != "col_MoveDown" && dgvColumn.Name != "col_Delete" && dgvColumn.Name != "col_Edit" &&
-                dgvColumn.Name != "col_CheckBox" && dgvColumn.Name != "col_AutoSlno")
-                {
-
-                    sumBox = new ReadOnlyTextBox();
-                    sumBoxHash.Add(dgvColumn, sumBox);
-
-                    sumBox.Top = 0;
-                    sumBox.Height = dgv.RowTemplate.Height;
-                    sumBox.BorderColor = dgv.GridColor;
-                    sumBox.Name = dgvColumn.Name;
-                    if (summaryRowBackColor == null)
-                        sumBox.BackColor = dgv.DefaultCellStyle.BackColor;
-                    else
-                        sumBox.BackColor = summaryRowBackColor;
-                    sumBox.BringToFront();
-
-                    if (dgv.ColumnCount - iCnt == 1)
-                        sumBox.IsLastColumn = true;
-
-                    if (dgv.SummaryColumns != null && dgv.SummaryColumns.Length > 0)
-                    {
-                        for (int iCntX = 0; iCntX < dgv.SummaryColumns.Length; iCntX++)
-                        {
-                            if (dgv.SummaryColumns[iCntX] == dgvColumn.DataPropertyName ||
-                                dgv.SummaryColumns[iCntX] == dgvColumn.Name)
-                            {
-                                dgvColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-
-                                if (!dgvColumn.IsDataBound)
-                                {
-
-                                    dgvColumn.CellTemplate.Style.Format = dgv.FormatString;
-                                }
-                                else
-                                {
-                                    switch (dgvColumn.ValueType.Name)
-                                    {
-                                        case "Decimal":
-                                            dgvColumn.CellTemplate.Style.Format = dgv.FormatString;
-                                            break;
-                                        default:
-                                            break;
-
-                                    }
-                                }
-
-                                sumBox.TextAlign = TextHelper.TranslateGridColumnAligment(dgvColumn.DefaultCellStyle.Alignment);
-                                sumBox.IsSummary = true;
-
-                                sumBox.FormatString = dgvColumn.CellTemplate.Style.Format;
-                                if (dgvColumn.ValueType == typeof(System.Int32) || dgvColumn.ValueType == typeof(System.Int16) ||
-                                    dgvColumn.ValueType == typeof(System.Int64) || dgvColumn.ValueType == typeof(System.Single) ||
-                                    dgvColumn.ValueType == typeof(System.Double) || dgvColumn.ValueType == typeof(System.Single) ||
-                                    dgvColumn.ValueType == typeof(System.Decimal))
-                                    sumBox.Tag = System.Activator.CreateInstance(dgvColumn.ValueType);
-                            }
-                        }
-                    }
-
-                    sumBox.BringToFront();
-                    sumBox.TabIndex = iCnt + 1;
-                    this.Controls.Add(sumBox);
-                    sumBox.DataPropertyName = dgvColumn.Name;
-                    _SummaryCells.Add(sumBox);
-                    iCnt++;
-                }
-            }
-
-
-            calcSummaries();
+            base.OnResize(e);
             resizeSumBoxes();
         }
 
-        /// <summary>
-        /// Order the columns in the way they are displayed
-        /// </summary>
+        #endregion
+
+        #region Cache Invalidation Handlers
+
+        // ✅ NEW: Data source changed - invalidate cache and recalculate
+        private void dgv_DataSourceChanged(object sender, EventArgs e)
+        {
+            cacheValid = false;
+            calcSummaries();
+        }
+
+        // ✅ NEW: Rows added - invalidate cache and recalculate
+        private void dgv_RowsAdded(object sender, DataGridViewRowsAddedEventArgs e)
+        {
+            cacheValid = false;
+            calcSummaries();
+        }
+
+        // ✅ NEW: Rows removed - invalidate cache and recalculate
+        private void dgv_RowsRemoved(object sender, DataGridViewRowsRemovedEventArgs e)
+        {
+            cacheValid = false;
+            calcSummaries();
+        }
+
+        // ✅ NEW: User deleting row - invalidate cache (will recalc after delete)
+        private void dgv_UserDeletingRow(object sender, DataGridViewRowCancelEventArgs e)
+        {
+            cacheValid = false;
+        }
+
+        #endregion
+
+        #region Helpers
+
+        protected bool IsInteger(object o)
+        {
+            return o is Int16 || o is Int32 || o is Int64;
+        }
+
+        protected bool IsDecimal(object o)
+        {
+            return o is Decimal || o is Single || o is Double;
+        }
+
+        private bool IsSupportedNumericType(Type type)
+        {
+            if (type == null) return false;
+
+            return type == typeof(short) ||
+                   type == typeof(int) ||
+                   type == typeof(long) ||
+                   type == typeof(float) ||
+                   type == typeof(double) ||
+                   type == typeof(decimal);
+        }
+
+        private bool ShouldSkipColumn(DataGridViewColumn dgvColumn)
+        {
+            if (dgvColumn == null)
+                return true;
+
+            string name = dgvColumn.Name;
+
+            return name == "col_MoveUp" ||
+                   name == "col_MoveDown" ||
+                   name == "col_Delete" ||
+                   name == "col_Edit" ||
+                   name == "col_CheckBox" ||
+                   name == "col_AutoSlno" ||
+                   name == "Col_AutoSlno";
+        }
+
+        private bool IsSummaryColumn(DataGridViewColumn dgvColumn)
+        {
+            if (dgv.SummaryColumns == null || dgv.SummaryColumns.Length == 0 || dgvColumn == null)
+                return false;
+
+            string colName = dgvColumn.Name ?? string.Empty;
+            string dataPropertyName = dgvColumn.DataPropertyName ?? string.Empty;
+
+            for (int i = 0; i < dgv.SummaryColumns.Length; i++)
+            {
+                string summaryCol = dgv.SummaryColumns[i];
+                if (string.Equals(summaryCol, colName, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(summaryCol, dataPropertyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private List<DataGridViewColumn> SortedColumns
         {
             get
             {
                 List<DataGridViewColumn> result = new List<DataGridViewColumn>();
+
                 DataGridViewColumn column = dgv.Columns.GetFirstColumn(DataGridViewElementStates.None);
-                if (column == null)
-                    return result;
-                result.Add(column);
-                while ((column = dgv.Columns.GetNextColumn(column, DataGridViewElementStates.None, DataGridViewElementStates.None)) != null)
+                while (column != null)
+                {
                     result.Add(column);
+                    column = dgv.Columns.GetNextColumn(column, DataGridViewElementStates.None, DataGridViewElementStates.None);
+                }
 
                 return result;
             }
         }
 
-        /// <summary>
-        /// Resize the summary Boxes depending on the 
-        /// width of the Columns of the DataGridView
-        /// </summary>
-        public  void resizeSumBoxes()
+        #endregion
+
+        #region Public methods
+
+        internal void RefreshSummary(bool reCreateSummary = false)
+        {
+            if (!dgv.SummaryRowVisible)
+                return;
+
+            // ✅ Always invalidate cache on refresh to ensure fresh calculations
+            cacheValid = false;
+            
+            if (reCreateSummary)
+                reCreateSumBoxes();
+
+            calcSummaries();
+        }
+
+        public void reCreateSumBoxes()
         {
             this.SuspendLayout();
-            if (sumBoxHash.Count > 0)
-                try
+
+            try
+            {
+                foreach (Control control in sumBoxMap.Values)
                 {
-                    int rowHeaderWidth = dgv.RowHeadersVisible ? dgv.RowHeadersWidth - 1 : 0;
-                    int sumLabelWidth = dgv.RowHeadersVisible ? dgv.RowHeadersWidth - 1 : 0;
-                    int curPos = rowHeaderWidth;
+                    this.Controls.Remove(control);
+                    control.Dispose();
+                }
 
-                    if (dgv.ShowSerialNo)
-                    {
-                        if(dgv.Columns.Contains("Col_AutoSlno"))
-                        {
-                        curPos += dgv.Columns["Col_AutoSlno"].Width;
-                        }
-                    }
+                sumBoxMap.Clear();
+                _summaryCells.Clear();
+                summaryCache.Clear();
 
-                    if (dgv.DisplaySumRowHeader && sumLabelWidth > 0)
+                if (dgv.DisplaySumRowHeader)
+                {
+                    sumRowHeaderLabel.Font = new Font(
+                        dgv.DefaultCellStyle.Font,
+                        dgv.SumRowHeaderTextBold ? FontStyle.Bold : FontStyle.Regular);
+
+                    sumRowHeaderLabel.Anchor = AnchorStyles.Left;
+                    sumRowHeaderLabel.TextAlign = ContentAlignment.MiddleLeft;
+                    sumRowHeaderLabel.Height = sumRowHeaderLabel.Font.Height;
+                    sumRowHeaderLabel.Top = Convert.ToInt32((double)(this.InitialHeight - sumRowHeaderLabel.Height) / 2D);
+                    sumRowHeaderLabel.Text = dgv.SumRowHeaderText;
+                    sumRowHeaderLabel.ForeColor = dgv.DefaultCellStyle.ForeColor;
+                    sumRowHeaderLabel.Margin = new Padding(0);
+                    sumRowHeaderLabel.Padding = new Padding(0);
+                    sumRowHeaderLabel.TabIndex = 0;
+
+                    if (!this.Controls.Contains(sumRowHeaderLabel))
+                        this.Controls.Add(sumRowHeaderLabel);
+                }
+                else
+                {
+                    if (this.Controls.Contains(sumRowHeaderLabel))
+                        this.Controls.Remove(sumRowHeaderLabel);
+                }
+
+                int tabIndex = 1;
+                List<DataGridViewColumn> sortedColumns = SortedColumns;
+                int visibleColumnCount = sortedColumns.Count;
+
+                // ✅ NEW: Create summary cells for ALL columns (including hidden ones)
+                for (int i = 0; i < visibleColumnCount; i++)
+                {
+                    DataGridViewColumn dgvColumn = sortedColumns[i];
+
+                    if (ShouldSkipColumn(dgvColumn))
+                        continue;
+
+                    ReadOnlyTextBox sumBox = new ReadOnlyTextBox();
+                    sumBoxMap[dgvColumn] = sumBox;
+
+                    sumBox.Top = 0;
+                    sumBox.Height = dgv.RowTemplate.Height;
+                    sumBox.BorderColor = dgv.GridColor;
+                    sumBox.Name = dgvColumn.Name;
+                    sumBox.BackColor = summaryRowBackColor.IsEmpty
+                        ? dgv.DefaultCellStyle.BackColor
+                        : summaryRowBackColor;
+                    sumBox.TabIndex = tabIndex++;
+                    sumBox.DataPropertyName = dgvColumn.Name;
+                    sumBox.IsLastColumn = (i == visibleColumnCount - 1);
+
+                    if (IsSummaryColumn(dgvColumn))
                     {
-                        if (dgv.RightToLeft == RightToLeft.Yes)
+                        if (!dgvColumn.IsDataBound)
                         {
-                            if (sumRowHeaderLabel.Dock != DockStyle.Right)
-                                sumRowHeaderLabel.Dock = DockStyle.Right;
+                            dgvColumn.CellTemplate.Style.Format = dgv.FormatString;
                         }
+                        else if (dgvColumn.ValueType != null && dgvColumn.ValueType == typeof(decimal))
+                        {
+                            dgvColumn.CellTemplate.Style.Format = dgv.FormatString;
+                        }
+
+                        sumBox.TextAlign = TextHelper.TranslateGridColumnAligment(dgvColumn.DefaultCellStyle.Alignment);
+                        sumBox.IsSummary = true;
+                        sumBox.FormatString = dgvColumn.CellTemplate.Style.Format;
+
+                        if (IsSupportedNumericType(dgvColumn.ValueType))
+                            sumBox.Tag = Activator.CreateInstance(dgvColumn.ValueType);
                         else
-                        {
-                            if (sumRowHeaderLabel.Dock != DockStyle.Left)
-                                sumRowHeaderLabel.Dock = DockStyle.Left;
-
-                        }
+                            sumBox.Tag = 0m;
                     }
                     else
                     {
-                        if (sumRowHeaderLabel.Visible)
-                            sumRowHeaderLabel.Visible = false;
+                        sumBox.IsSummary = false;
+                        sumBox.Tag = null;
                     }
 
-                    int iCnt = 0;
-                    Rectangle oldBounds;
-
-                    foreach (DataGridViewColumn dgvColumn in SortedColumns) //dgv.Columns)
+                    // ✅ NEW: Only add visible columns to the control collection
+                    // Hidden columns will have their summary boxes created but not added to UI
+                    if (dgvColumn.Visible)
                     {
-                        ReadOnlyTextBox sumBox = (ReadOnlyTextBox)sumBoxHash[dgvColumn];
-
-
-                        if (sumBox != null)
-                        {
-                            oldBounds = sumBox.Bounds;
-                            if (!dgvColumn.Visible)
-                            {
-                                sumBox.Visible = false;
-                                continue;
-                            }
-
-                            int from = curPos - dgv.HorizontalScrollingOffset;
-
-                            int width = dgvColumn.Width + (iCnt == 0 ? 0 : 0);
-
-                            if (from < rowHeaderWidth)
-                            {
-                                width -= rowHeaderWidth - from;
-                                from = rowHeaderWidth;
-                            }
-
-                            if (from + width > this.Width)
-                                width = this.Width - from;
-
-                            if (width < 4)
-                            {
-                                if (sumBox.Visible)
-                                    sumBox.Visible = false;
-                            }
-                            else
-                            {
-                                if (this.RightToLeft == RightToLeft.Yes)
-                                    from = this.Width - from - width;
-
-
-                                if (sumBox.Left != from || sumBox.Width != width)
-                                    sumBox.SetBounds(from, 0, width, 0, BoundsSpecified.X | BoundsSpecified.Width);
-
-                                if (!sumBox.Visible)
-                                    sumBox.Visible = true;
-                            }
-
-                            curPos += dgvColumn.Width + (iCnt == 0 ? 0 : 0);
-                            if (oldBounds != sumBox.Bounds)
-                                sumBox.Invalidate();
-
-                        }
-                        iCnt++;
+                        this.Controls.Add(sumBox);
+                        sumBox.BringToFront();
                     }
+
+                    _summaryCells.Add(sumBox);
                 }
-                finally
+            }
+            finally
+            {
+                this.ResumeLayout();
+            }
+
+            calcSummaries();
+            resizeSumBoxes();
+        }
+
+        public void resizeSumBoxes()
+        {
+            if (sumBoxMap.Count == 0)
+                return;
+
+            this.SuspendLayout();
+
+            try
+            {
+                int rowHeaderWidth = dgv.RowHeadersVisible ? dgv.RowHeadersWidth - 1 : 0;
+                int sumLabelWidth = rowHeaderWidth;
+                int curPos = rowHeaderWidth;
+
+                if (dgv.ShowSerialNo && dgv.Columns.Contains("Col_AutoSlno"))
                 {
-                    this.ResumeLayout();
+                    curPos += dgv.Columns["Col_AutoSlno"].Width;
                 }
+
+                if (dgv.DisplaySumRowHeader && sumLabelWidth > 0)
+                {
+                    if (dgv.RightToLeft == RightToLeft.Yes)
+                    {
+                        if (sumRowHeaderLabel.Dock != DockStyle.Right)
+                            sumRowHeaderLabel.Dock = DockStyle.Right;
+                    }
+                    else
+                    {
+                        if (sumRowHeaderLabel.Dock != DockStyle.Left)
+                            sumRowHeaderLabel.Dock = DockStyle.Left;
+                    }
+
+                    if (!sumRowHeaderLabel.Visible)
+                        sumRowHeaderLabel.Visible = true;
+                }
+                else
+                {
+                    if (sumRowHeaderLabel.Visible)
+                        sumRowHeaderLabel.Visible = false;
+                }
+
+                List<DataGridViewColumn> columns = SortedColumns;
+
+                for (int i = 0; i < columns.Count; i++)
+                {
+                    DataGridViewColumn dgvColumn = columns[i];
+
+                    ReadOnlyTextBox sumBox;
+                    if (!sumBoxMap.TryGetValue(dgvColumn, out sumBox) || sumBox == null)
+                        continue;
+
+                    if (!dgvColumn.Visible)
+                    {
+                        // ✅ NEW: Keep hidden column summary boxes hidden but maintain their data
+                        if (sumBox.Visible)
+                            sumBox.Visible = false;
+                        
+                        // ✅ NEW: Remove from controls if it exists
+                        if (this.Controls.Contains(sumBox))
+                            this.Controls.Remove(sumBox);
+
+                        continue;
+                    }
+                    else
+                    {
+                        // ✅ NEW: If column becomes visible and summary box is not in controls, add it
+                        if (!this.Controls.Contains(sumBox))
+                            this.Controls.Add(sumBox);
+                    }
+
+                    int from = curPos - dgv.HorizontalScrollingOffset;
+                    int width = dgvColumn.Width;
+
+                    if (from < rowHeaderWidth)
+                    {
+                        width -= (rowHeaderWidth - from);
+                        from = rowHeaderWidth;
+                    }
+
+                    if (from + width > this.Width)
+                        width = this.Width - from;
+
+                    if (width < 4)
+                    {
+                        if (sumBox.Visible)
+                            sumBox.Visible = false;
+                    }
+                    else
+                    {
+                        if (this.RightToLeft == RightToLeft.Yes)
+                            from = this.Width - from - width;
+
+                        if (sumBox.Left != from || sumBox.Width != width)
+                        {
+                            sumBox.SetBounds(from, 0, width, dgv.RowTemplate.Height,
+                                BoundsSpecified.X | BoundsSpecified.Y | BoundsSpecified.Width | BoundsSpecified.Height);
+                        }
+
+                        if (!sumBox.Visible)
+                            sumBox.Visible = true;
+                    }
+
+                    curPos += dgvColumn.Width;
+                }
+            }
+            finally
+            {
+                this.ResumeLayout();
+            }
+        }
+
+        #endregion
+
+        #region Summary calculation (OPTIMIZED)
+
+        // ✅ OPTIMIZATION: Calculate only the affected column instead of recalculating all
+        private void calcSingleColumnSummary(DataGridViewColumn column)
+        {
+            if (!dgv.SummaryRowVisible || dgv.SummaryPaused)
+                return;
+
+            ReadOnlyTextBox sumBox;
+            if (!sumBoxMap.TryGetValue(column, out sumBox) || !sumBox.IsSummary)
+                return;
+
+            decimal total = CalculateColumnTotal(column.Index);
+            sumBox.Tag = total;
+            sumBox.Text = FormatSummaryValue(total, sumBox.FormatString);
+            sumBox.Invalidate();  // ✅ Force repaint
+            
+            dgv.OnSummaryCalculated(dgv, EventArgs.Empty);
+        }
+
+        private void calcSummaries()
+        {
+            if (!dgv.SummaryRowVisible || dgv.SummaryPaused)
+                return;
+
+            if (sumBoxMap.Count == 0)
+                return;
+
+            // ✅ OPTIMIZATION: Check if cache is still valid BEFORE invalidating it
+            if (cacheValid && summaryCache.Count > 0)
+            {
+                // Apply cached values without recalculation
+                ApplyCachedSummaries();
+                dgv.OnSummaryCalculated(dgv, EventArgs.Empty);
+                return;
+            }
+
+            // Initialize all summary boxes with "0" as fallback
+            foreach (ReadOnlyTextBox box in sumBoxMap.Values)
+            {
+                if (!box.IsSummary)
+                    continue;
+
+                box.Tag = 0m;
+                box.Text = "0";
+            }
+
+            // If no data or no summary columns, stop here
+            if (dgv.Rows.Count == 0 || dgv.SummaryColumns == null || dgv.SummaryColumns.Length == 0)
+            {
+                cacheValid = false;  // ✅ Invalidate cache when no data
+                dgv.OnSummaryCalculated(dgv, EventArgs.Empty);
+                return;
+            }
+
+            // Recalculate all summaries
+            summaryCache.Clear();
+
+            foreach (KeyValuePair<DataGridViewColumn, ReadOnlyTextBox> kvp in sumBoxMap)
+            {
+                DataGridViewColumn column = kvp.Key;
+                ReadOnlyTextBox sumBox = kvp.Value;
+
+                if (sumBox == null || !sumBox.IsSummary)
+                    continue;
+
+                decimal total = CalculateColumnTotal(column.Index);
+                summaryCache[column.Index] = total;
+                
+                sumBox.Tag = total;
+                sumBox.Text = FormatSummaryValue(total, sumBox.FormatString);
+                sumBox.Invalidate();  // ✅ Force repaint
+            }
+
+            // ✅ Mark cache as valid only after successful calculation
+            cacheValid = true;
+            dgv.OnSummaryCalculated(dgv, EventArgs.Empty);
+        }
+
+        // ✅ OPTIMIZATION: Extracted calculation logic for reuse
+        private decimal CalculateColumnTotal(int colIndex)
+        {
+            decimal total = 0m;
+
+            foreach (DataGridViewRow row in dgv.Rows)
+            {
+                if (row == null || row.IsNewRow)
+                    continue;
+
+                object value = row.Cells[colIndex].Value;
+                if (value == null || value == DBNull.Value)
+                    continue;
+
+                decimal parsed;
+                if (TryConvertToDecimal(value, out parsed))
+                {
+                    total += parsed;
+                }
+            }
+
+            return total;
+        }
+
+        private void ApplyCachedSummaries()
+        {
+            foreach (KeyValuePair<DataGridViewColumn, ReadOnlyTextBox> kvp in sumBoxMap)
+            {
+                DataGridViewColumn column = kvp.Key;
+                ReadOnlyTextBox sumBox = kvp.Value;
+
+                if (sumBox == null || !sumBox.IsSummary)
+                    continue;
+
+                decimal total;
+                if (summaryCache.TryGetValue(column.Index, out total))
+                {
+                    sumBox.Tag = total;
+                    sumBox.Text = FormatSummaryValue(total, sumBox.FormatString);
+                    sumBox.Invalidate();  // ✅ Force repaint
+                }
+            }
+        }
+
+        private bool TryConvertToDecimal(object value, out decimal result)
+        {
+            result = 0m;
+
+            if (value == null || value == DBNull.Value)
+                return false;
+
+            if (value is decimal)
+            {
+                result = (decimal)value;
+                return true;
+            }
+
+            if (value is int)
+            {
+                result = (int)value;
+                return true;
+            }
+
+            if (value is long)
+            {
+                result = (long)value;
+                return true;
+            }
+
+            if (value is short)
+            {
+                result = (short)value;
+                return true;
+            }
+
+            if (value is float)
+            {
+                result = Convert.ToDecimal((float)value);
+                return true;
+            }
+
+            if (value is double)
+            {
+                result = Convert.ToDecimal((double)value);
+                return true;
+            }
+
+            return decimal.TryParse(Convert.ToString(value), out result);
+        }
+
+        private string FormatSummaryValue(decimal value, string formatString)
+        {
+            if (string.IsNullOrWhiteSpace(formatString))
+                return value.ToString();
+
+            try
+            {
+                return value.ToString(formatString);
+            }
+            catch
+            {
+                return value.ToString();
+            }
         }
 
         #endregion
     }
 
+    // ✅ NEW: Safe wrapper to prevent null reference exceptions
+    public class SafeSummaryCell
+    {
+        private readonly ReadOnlyTextBox _cell;
+        private const string _defaultValue = "0";
 
-    public   class SummaryCellCollection : ICollection<ReadOnlyTextBox>  
-{
-        private List<ReadOnlyTextBox> SummaryCells = new List<ReadOnlyTextBox>();
+        public SafeSummaryCell(ReadOnlyTextBox cell)
+        {
+            _cell = cell;
+        }
+
+        // ✅ Return actual cell text value (don't override with defaults)
+        public string Text
+        {
+            get
+            {
+                try
+                {
+                    if (_cell != null)
+                        return _cell.Text ?? _defaultValue;
+                    return _defaultValue;
+                }
+                catch
+                {
+                    return _defaultValue;
+                }
+            }
+            set
+            {
+                try
+                {
+                    if (_cell != null)
+                        _cell.Text = value ?? _defaultValue;
+                }
+                catch
+                {
+                    // Silently fail if unable to set
+                }
+            }
+        }
+
+        // ✅ Expose Tag property from underlying cell
+        public object Tag
+        {
+            get
+            {
+                try
+                {
+                    return _cell?.Tag;
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+            set
+            {
+                try
+                {
+                    if (_cell != null)
+                        _cell.Tag = value;
+                }
+                catch
+                {
+                    // Silently fail if unable to set
+                }
+            }
+        }
+
+        // ✅ Access the actual cell if needed
+        public ReadOnlyTextBox Cell
+        {
+            get { return _cell; }
+        }
+
+        // ✅ Check if cell exists
+        public bool Exists
+        {
+            get { return _cell != null; }
+        }
+    }
+
+    public class SummaryCellCollection : ICollection<ReadOnlyTextBox>
+    {
+        private readonly List<ReadOnlyTextBox> summaryCells = new List<ReadOnlyTextBox>();
 
         public SummaryCellCollection()
         {
@@ -551,60 +826,143 @@ namespace Gramboo.Controls
         {
             get
             {
-                if (index <= SummaryCells.Count - 1)
-                {
-                    return SummaryCells[index];
-                }
-                else
-                {
-                    return null;
-                }
+                if (index >= 0 && index < summaryCells.Count)
+                    return summaryCells[index];
 
+                return null;
             }
         }
 
-        public ReadOnlyTextBox this[string ColumnName]
+        // ✅ PRIMARY: String indexer returns ReadOnlyTextBox for backward compatibility with old compiled code
+        public ReadOnlyTextBox this[string columnName]
         {
             get
             {
-                ReadOnlyTextBox rt=new ReadOnlyTextBox();
-                foreach (ReadOnlyTextBox t in SummaryCells)
-                {
-                    if (t.DataPropertyName.Trim().ToUpper() == ColumnName.Trim().ToUpper())
-                    {
-                        rt= t;
-                        break;
-                    }
+                if (string.IsNullOrWhiteSpace(columnName))
+                    return null;
 
+                foreach (ReadOnlyTextBox t in summaryCells)
+                {
+                    if (string.Equals(t.DataPropertyName?.Trim(), columnName.Trim(), StringComparison.OrdinalIgnoreCase))
+                        return t;
                 }
-                return rt;
+
+                return null;
             }
         }
 
+        // ✅ NEW: Internal method to get actual cell (not wrapped)
+        private ReadOnlyTextBox GetActualCell(string columnName)
+        {
+            if (string.IsNullOrWhiteSpace(columnName))
+                return null;
+
+            foreach (ReadOnlyTextBox t in summaryCells)
+            {
+                if (string.Equals(t.DataPropertyName?.Trim(), columnName.Trim(), StringComparison.OrdinalIgnoreCase))
+                    return t;
+            }
+
+            return null;
+        }
+
+        // ✅ NEW: Safe access method - TryGet pattern
+        public bool TryGetCell(string columnName, out ReadOnlyTextBox cell)
+        {
+            cell = GetActualCell(columnName);
+            return cell != null;
+        }
+
+        // ✅ NEW: Get cell text safely with default value
+        public string GetCellText(string columnName, string defaultText = "")
+        {
+            try
+            {
+                var cell = GetActualCell(columnName);
+                return cell?.Text ?? defaultText;
+            }
+            catch
+            {
+                return defaultText;
+            }
+        }
+
+        // ✅ NEW: Get cell value (Tag) safely with default value
+        public decimal GetCellValue(string columnName, decimal defaultValue = 0m)
+        {
+            try
+            {
+                var cell = GetActualCell(columnName);
+                if (cell != null && cell.Tag is decimal decValue)
+                    return decValue;
+                if (cell != null && cell.Tag != null && decimal.TryParse(cell.Tag.ToString(), out decimal parsed))
+                    return parsed;
+                return defaultValue;
+            }
+            catch
+            {
+                return defaultValue;
+            }
+        }
+
+        // ✅ NEW: Check if column exists
+        public bool ContainsColumn(string columnName)
+        {
+            return GetActualCell(columnName) != null;
+        }
+
+        // ✅ NEW: Get all column names
+        public List<string> GetColumnNames()
+        {
+            var names = new List<string>();
+            foreach (ReadOnlyTextBox cell in summaryCells)
+            {
+                if (!string.IsNullOrWhiteSpace(cell?.DataPropertyName))
+                    names.Add(cell.DataPropertyName);
+            }
+            return names;
+        }
+
+        // ✅ NEW: Get text or "0" if null (simple solution)
+        public string GetTextOrZero(string columnName)
+        {
+            try
+            {
+                var safeSummaryCell = this[columnName];
+                if (safeSummaryCell != null && !string.IsNullOrWhiteSpace(safeSummaryCell.Text))
+                    return safeSummaryCell.Text;
+                return "0";
+            }
+            catch
+            {
+                return "0";
+            }
+        }
 
         public void Clear()
         {
-            SummaryCells.Clear();
+            summaryCells.Clear();
         }
 
         public void Add(ReadOnlyTextBox item)
         {
-            SummaryCells.Add(item);
+            if (item != null)
+                summaryCells.Add(item);
         }
 
         public bool Contains(ReadOnlyTextBox item)
         {
-            return SummaryCells.Contains(item);
+            return summaryCells.Contains(item);
         }
 
         public void CopyTo(ReadOnlyTextBox[] array, int arrayIndex)
         {
-            SummaryCells.CopyTo(array, arrayIndex);
+            summaryCells.CopyTo(array, arrayIndex);
         }
 
         public int Count
         {
-            get { return SummaryCells.Count; }
+            get { return summaryCells.Count; }
         }
 
         public bool IsReadOnly
@@ -614,18 +972,17 @@ namespace Gramboo.Controls
 
         public bool Remove(ReadOnlyTextBox item)
         {
-            return SummaryCells.Remove(item);
+            return summaryCells.Remove(item);
         }
- 
 
-             IEnumerator<ReadOnlyTextBox> IEnumerable<ReadOnlyTextBox>.GetEnumerator()
-             {
-                 return this.SummaryCells.GetEnumerator();
-             }
+        public IEnumerator<ReadOnlyTextBox> GetEnumerator()
+        {
+            return summaryCells.GetEnumerator();
+        }
 
-             IEnumerator IEnumerable.GetEnumerator()
-             {
-                 return this.SummaryCells.GetEnumerator();
-             }
-}
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return summaryCells.GetEnumerator();
+        }
+    }
 }

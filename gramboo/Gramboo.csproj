@@ -40,7 +40,7 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup>
-    <SignAssembly>false</SignAssembly>
+    <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
     <AssemblyOriginatorKeyFile>Gramboo.snk</AssemblyOriginatorKeyFile>
@@ -63,9 +63,6 @@
       <HintPath>..\packages\ExcelNumberFormat.1.0.10\lib\net20\ExcelNumberFormat.dll</HintPath>
     </Reference>
     <Reference Include="FlashControlV71, Version=1.0.3187.32366, Culture=neutral, PublicKeyToken=692fbea5521e1304" />
-    <Reference Include="GlassMessage">
-      <HintPath>..\..\..\FA\SimpleFA - 2019\FA\bin\Debug\GlassMessage.dll</HintPath>
-    </Reference>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
@@ -169,6 +166,7 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Controls\ReportGridConfig.cs" />
+    <Compile Include="Controls\SummaryCellExtensions.cs" />
     <Compile Include="Controls\SummaryControlContainer.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -345,6 +343,7 @@
     <Compile Include="Controls\GrbDataGridView.Designer.cs">
       <DependentUpon>GrbDataGridView.cs</DependentUpon>
     </Compile>
+    <Compile Include="Glass.cs" />
     <Compile Include="GrbConfig.cs" />
     <Compile Include="MyConfigHandler.cs" />
     <Compile Include="ODBCManager.cs" />

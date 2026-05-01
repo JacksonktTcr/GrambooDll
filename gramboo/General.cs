@@ -5,7 +5,7 @@ using System.Text;
 using System.ComponentModel;
 using System.Windows.Forms;
 using System.Data.SqlClient;
-using GlassMessage;
+ 
 using Gramboo.Database;
 using System.Data;
 namespace Gramboo
@@ -46,6 +46,7 @@ namespace Gramboo
                         else if (Obj is Gramboo.Controls.GrbDataGridView)
                         {
                             bool summvisible = ((Gramboo.Controls.GrbDataGridView)Obj).SummaryRowVisible;
+                            ((Gramboo.Controls.GrbDataGridView)Obj).SummaryPaused = true;
                             ((Gramboo.Controls.GrbDataGridView)Obj).SummaryRowVisible = false;
 
 
@@ -54,6 +55,9 @@ namespace Gramboo
 
 
                             ((Gramboo.Controls.GrbDataGridView)Obj).SummaryRowVisible= summvisible;
+                            ((Gramboo.Controls.GrbDataGridView)Obj).SummaryPaused = false;
+                            ((Gramboo.Controls.GrbDataGridView)Obj).RefreshSummary(true);
+
                         }
                     }
                     else if (Obj is TextBox)

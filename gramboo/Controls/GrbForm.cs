@@ -13,11 +13,28 @@ using WeifenLuo.WinFormsUI.Docking;
 using System.Threading;
 using System.IO;
 using Gramboo.Classes;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace Gramboo.Controls
 {
     public partial class GrbForm : DockContent
     {
+        [DllImport("user32.dll", EntryPoint = "SendMessage")]
+        private static extern int SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
+
+        private const int WM_SETREDRAW = 0x0B;
+
+        private void SuspendDrawing(Control parent)
+        {
+            SendMessage(parent.Handle, WM_SETREDRAW, 0, 0);
+        }
+
+        private void ResumeDrawing(Control parent)
+        {
+            SendMessage(parent.Handle, WM_SETREDRAW, 1, 0);
+            parent.Refresh();
+        }
 
         Dictionary<string,object> cols = new Dictionary<string, object>();
         DataTable PropTable = new DataTable("PropertyTable");
@@ -172,31 +189,7 @@ namespace Gramboo.Controls
  
         public virtual bool GenerateID(Table table_name)
         {
-            //IEnumerable<Control> ctrls;
-            //ctrls = GetAllIDTextBoxes(this);
-            //DataTable dt = new DataTable();
-
-            //dt = GetTableColumns(table_name);
-
-            //foreach (Control c in ctrls)
-            //{
-            //    if (dt.Select("COLUMN_NAME =" + ((GrbTextBox)c).DataField).Length > 0)
-            //    {
-            //        if (table_name != this.TableName)
-            //        {
-            //            if (MainPropTable.Select("DataField =" + ((GrbTextBox)c).DataField).Length <= 0)
-            //            {
-
-                        
-
-            //            }
-
-            //        }
-            //    }
- 
-            //}
-           
-
+      
             return true;
         }
 
@@ -624,27 +617,80 @@ namespace Gramboo.Controls
             return qry;
         }
 
-        public  virtual string GenerateInsertQuery(Table table_name)
+        public virtual string GenerateInsertQuery(Table table_name, DataTable propTable = null)
         {
-            string qry="";
+            // Use provided propTable or fallback to the global PropTable
+            DataTable tbl = propTable ?? PropTable;
 
-            string fieldlst="";
-            string vallst="";
-            string quote="";
-            SetDefaultValues();
-            foreach (DataRow c in PropTable.Rows )
+            StringBuilder fieldList = new StringBuilder();
+            StringBuilder valueList = new StringBuilder();
+
+            // Make sure defaults are set before building query
+            SetDefaultValues(tbl);
+
+            foreach (DataRow c in tbl.Rows)
             {
-                quote = (General.TypesWithQuotes.Contains(c["DataType"].ToString(), StringComparer.OrdinalIgnoreCase) ? "'" : "");
+                string field = Convert.ToString(c["DataField"]);
+                string dataType = Convert.ToString(c["DataType"]);
+                object value = c["Value"];
 
-                fieldlst += (fieldlst.Length == 0 ? "" : " , ") + c["DataField"];
+                // Check if field requires quotes
+                bool needsQuote = General.TypesWithQuotes.Contains(dataType, StringComparer.OrdinalIgnoreCase);
 
-                vallst += (vallst.Length == 0 ? "" : " , ") + quote + c["Value"].ToString().Replace("'","''") + quote;
+                string formattedValue;
+                if (value == null || value == DBNull.Value)
+                {
+                    formattedValue = "NULL";
+                }
+                else if (needsQuote)
+                {
+                    // Date formatting
+                    if (dataType.Equals("datetime", StringComparison.OrdinalIgnoreCase) ||
+                        dataType.Equals("smalldatetime", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (DateTime.TryParse(value.ToString(), out DateTime dt))
+                            formattedValue = $"'{dt:dd-MMM-yyyy HH:mm:ss}'";
+                        else
+                            formattedValue = "NULL";
+                    }
+                    else
+                    {
+                        // Escape single quotes for SQL string safety
+                        string safeVal = value.ToString().Replace("'", "''");
+                        formattedValue = $"'{safeVal}'";
+                    }
+                }
+                else
+                {
+                    // Handle booleans and numerics safely
+                    string valStr = value.ToString().Trim();
+                    if (dataType.Equals("bit", StringComparison.OrdinalIgnoreCase))
+                    {
+                        formattedValue = (valStr.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                                          valStr.Equals("1")) ? "1" : "0";
+                    }
+                    else if (string.IsNullOrEmpty(valStr))
+                    {
+                        formattedValue = "0";
+                    }
+                    else
+                    {
+                        formattedValue = valStr;
+                    }
+                }
+
+                if (fieldList.Length > 0)
+                {
+                    fieldList.Append(" , ");
+                    valueList.Append(" , ");
+                }
+
+                fieldList.Append(field);
+                valueList.Append(formattedValue);
             }
-            qry = "INSERT INTO " + table_name.GetName() + "(" + fieldlst + ")" + " VALUES (" + vallst + ")";
 
-
-            return  qry;
-
+            string qry = $"INSERT INTO {table_name.GetName()}({fieldList}) VALUES ({valueList})";
+            return qry;
         }
 
         public virtual string GenerateUpdateQuery(Table table_name)
@@ -677,18 +723,38 @@ namespace Gramboo.Controls
 
         }
 
-        private void SetDefaultValues()
+        private void SetDefaultValues(DataTable propTable = null)
         {
-            foreach (DataRow r in PropTable.Rows)
+            var tbl = propTable ?? PropTable; // support both shared & row-level use
+
+            if (tbl == null || tbl.Rows.Count == 0)
+                return;
+
+            // cache the type sets for quick lookup
+            var quotedTypes = General.TypesWithQuotes;
+            var defaultVals = General.SqlDefaultValues;
+
+            foreach (DataRow r in tbl.Rows)
             {
-                if (r["Value"] == null || r["Value"].ToString().Trim().Length == 0)
+                object val = r["Value"];
+                string dataType = Convert.ToString(r["DataType"]);
+                bool needsQuote = quotedTypes.Contains(dataType, StringComparer.OrdinalIgnoreCase);
+
+                // empty / null value
+                if (val == null || string.IsNullOrWhiteSpace(Convert.ToString(val)))
                 {
-                    r["Value"] = (General.TypesWithQuotes.Contains(r["DataType"].ToString(), StringComparer.OrdinalIgnoreCase) ? General.SqlDefaultValues[r["DataType"].ToString()] : 0);
-                    r.AcceptChanges();
-                    
+                    if (needsQuote && defaultVals.ContainsKey(dataType))
+                    {
+                        r["Value"] = defaultVals[dataType];
+                    }
+                    else if (!needsQuote)
+                    {
+                        // handle numerics, bits, etc.
+                        r["Value"] = 0;
+                    }
                 }
             }
-            PropTable.AcceptChanges();
+            tbl.AcceptChanges();
         }
 
 
@@ -1289,7 +1355,7 @@ namespace Gramboo.Controls
                 this.EditMode = false;
                 General.ClearControls(this);
                 GetCommonFieldValues();
-
+                
                 RefreshData();
             }
         }
@@ -1365,200 +1431,200 @@ namespace Gramboo.Controls
 
             return flag;
         }
-         
         private SqlCommand[] GetDataGridviewValues(Table table_name)
         {
+            Stopwatch sw = Stopwatch.StartNew();
+            LogTime($"[{DateTime.Now:dd-MMM-yyyy HH:mm:ss}] Start: GetDataGridviewValues for {table_name.GetName()}");
 
             try
             {
+                var grid = table_name.DatagridView;
+                if (grid.Rows.Count == 0)
+                    return Array.Empty<SqlCommand>();
 
-                SqlCommand[] cmdcol = new SqlCommand[0];
+                grid.SummaryPaused = true;
+                SuspendDrawing(grid);
 
-                if (table_name.DatagridView.Rows.Count == 0)
-                    return cmdcol;
-
-               cmdcol = new SqlCommand[table_name.DatagridView.Rows.Count];
-
-
-                DataTable dt = new DataTable();
+                // --- Step 1: Prepare Property Table Structure ---
                 PropTable.Rows.Clear();
-                dt = GetTableColumns(table_name);
-
-                DataRow dr;
+                DataTable dt = GetTableColumns(table_name);
 
                 foreach (DataRow r in MainPropTable.Rows)
                 {
-                    dr = PropTable.NewRow();
-
-                    if ((dt.Select("COLUMN_NAME='" + r["DataField"] + "'")).GetLength(0) > 0)
+                    if (dt.Select($"COLUMN_NAME='{r["DataField"]}'").Length > 0)
                     {
-                        dr.ItemArray=r.ItemArray ;
+                        DataRow dr = PropTable.NewRow();
+                        dr.ItemArray = r.ItemArray;
                         dr["TableName"] = MainPropTable.TableName;
                         PropTable.Rows.Add(dr);
                     }
                 }
 
-                foreach (DataGridViewColumn c in table_name.DatagridView.Columns)
+                // --- Step 2: Add Missing Columns from Grid ---
+                foreach (DataGridViewColumn c in grid.Columns)
                 {
+                    if (string.IsNullOrWhiteSpace(c.DataPropertyName)) continue;
+                    string df = c.DataPropertyName.Replace(" ", "");
 
-                    try
+                    if (PropTable.Select($"DataField='{df}'").Length == 0 &&
+                        dt.Select($"COLUMN_NAME='{df}'").Length > 0)
                     {
-                        if ((PropTable.Select("DataField='" + c.DataPropertyName.Replace(" ", "") + "'")).GetLength(0) <= 0)
-                        {
-
-                            dr = PropTable.NewRow();
-                            if (c.DataPropertyName != null)
-                            {
-                                if ((dt.Select("COLUMN_NAME='" + c.DataPropertyName.Replace(" ", "") + "'")).GetLength(0) > 0)
-                                {
-                                    dr = PropTable.NewRow();
-                                    dr["ControlName"] = c.Name;
-                                    dr["ControlType"] = c.CellType.Name;
-                                    dr["TableName"] = table_name.GetName();
-                                    dr["DataField"] = c.DataPropertyName.Replace(" ", "");
-                                    dr["DataType"] = Convert.ToString(((dt.Select("COLUMN_NAME='" + c.DataPropertyName.Replace(" ", "") + "'"))[0]["TYPE_NAME"]));
-                                    dr["Value"] = null;
-                                    dr["CheckDuplicate"] = false;
-
-
-                                    PropTable.Rows.Add(dr);
-                                    PropTable.AcceptChanges();
-                                }
-                            }
-                        }
-                    }
-                    catch(Exception ex)
-                    {
-                        MessageBox.Show(ex.Message + c.Name);
+                        DataRow dr = PropTable.NewRow();
+                        dr["ControlName"] = c.Name;
+                        dr["ControlType"] = c.CellType.Name;
+                        dr["TableName"] = table_name.GetName();
+                        dr["DataField"] = df;
+                        dr["DataType"] = dt.Select($"COLUMN_NAME='{df}'")[0]["TYPE_NAME"].ToString();
+                        dr["Value"] = null;
+                        dr["CheckDuplicate"] = false;
+                        PropTable.Rows.Add(dr);
                     }
                 }
-                int i = 0;
-                //GrbTextBox idtext=new GrbTextBox();
-                try
+
+                PropTable.AcceptChanges();
+
+ 
+
+                // --- Step 4: Cache Property Table for Reference ---
+                var propMap = PropTable.Rows.Cast<DataRow>()
+                    .ToDictionary(r => r["DataField"].ToString(), r => r, StringComparer.OrdinalIgnoreCase);
+
+                // --- Step 5: Generate IDs ---
+                if (table_name.IdTextBox != null)
                 {
-                    //idtext = GetIdentityTextbox(table_name);
-                    if (table_name.IdTextBox != null)
+                    if (!TableKeys.TryGetValue(table_name.GetName(), out long idval))
                     {
+                        if (!GenerateID(table_name))
+                            return null;
 
-                        if (TableKeys.ContainsKey(table_name.GetName()))
-                        {
-                            long idval;
-
-                            TableKeys.TryGetValue(table_name.GetName(), out idval);
-                            table_name.IdTextBox.Text = (idval + 1).ToString();
-
-                        }
-                        else
-                        {
-
-                            if (!GenerateID(table_name))
-                                return null;
-                            else
-                            {
-                                TableKeys.Add(table_name.GetName(), Convert.ToInt64(table_name.IdTextBox.Text));
-                            }
-                        }
+                        TableKeys[table_name.GetName()] = Convert.ToInt64(table_name.IdTextBox.Text);
                     }
-
-                }
-                catch(Exception ex )
-                {
-                    MessageBox.Show(table_name.IdTextBox.Text + " " + table_name.IdTextBox.Name);
-
+                    else
+                    {
+                        table_name.IdTextBox.Text = (idval + 1).ToString();
+                    }
                 }
 
-                foreach (DataGridViewRow r in table_name.DatagridView.Rows)
+                long currentId = long.TryParse(table_name.IdTextBox?.Text, out long tmp) ? tmp : 0;
+                List<SqlCommand> cmdList = new List<SqlCommand>();
+
+                Stopwatch assignWatch = Stopwatch.StartNew();
+
+                // --- Step 6: Iterate Rows and Generate Commands ---
+                var validRows = grid.Rows.Cast<DataGridViewRow>().Where(r => !r.IsNewRow).ToList();
+                int rowIndex = 0;
+
+                foreach (DataGridViewRow r in validRows)
                 {
-
-
+                    // Copy PropTable structure for current row
+                    DataTable tempProp = PropTable.Copy();
 
                     foreach (DataGridViewCell c in r.Cells)
                     {
-                        try
+                        string dpn = c.OwningColumn?.DataPropertyName;
+                        if (string.IsNullOrEmpty(dpn)) continue;
+
+                        string df = dpn.Replace(" ", "");
+                        DataRow[] match = tempProp.Select($"DataField='{df}'");
+                        if (match.Length > 0)
                         {
-                            if (c.OwningColumn.DataPropertyName != null)
+                            if (df.Equals(table_name.IdTextBox?.DataField, StringComparison.OrdinalIgnoreCase))
                             {
-
-                                if ((PropTable.Select("DataField='" + c.OwningColumn.DataPropertyName + "'")).GetLength(0) > 0)
+                                if (!EditMode)
                                 {
-                                    if (PropTable.Select("DataField='" + c.OwningColumn.DataPropertyName + "'")[0]["TableName"].ToString() != MainPropTable.TableName)
-                                    {
-                                        if (table_name.IdTextBox.DataField.ToUpper() == c.OwningColumn.DataPropertyName.ToUpper())
-                                        {
-
-                                            if (!EditMode)
-                                            {
-                                                c.DataGridView[c.ColumnIndex, c.RowIndex].Value = table_name.IdTextBox.Text;
-                                            }
-                                            else if (c.DataGridView[c.ColumnIndex, c.RowIndex].Value.ToString().Length <= 1)
-                                            {
-                                                c.DataGridView[c.ColumnIndex, c.RowIndex].Value = table_name.IdTextBox.Text;
-                                            }
-                                        }
-
-                                        PropTable.Select("DataField='" + c.OwningColumn.DataPropertyName + "'")[0]["Value"] = c.DataGridView[c.ColumnIndex, c.RowIndex].Value;
-                                        PropTable.AcceptChanges();
-                                    }
+                                    c.Value = currentId;
                                 }
-
-
-                                else if ((PropTable.Select("DataField='" + c.OwningColumn.DataPropertyName.Replace(" ", "") + "'")).GetLength(0) > 0 && table_name.DatagridView.Columns.Contains(c.OwningColumn.DataPropertyName.Replace(" ", "")) == false)
+                                else if (string.IsNullOrEmpty(Convert.ToString(c.Value)))
                                 {
-                                    if (PropTable.Select("DataField='" + c.OwningColumn.DataPropertyName.Replace(" ", "") + "'")[0]["TableName"].ToString() != MainPropTable.TableName)
-                                    {
-                                        if (table_name.IdTextBox.DataField.ToUpper() == c.OwningColumn.DataPropertyName.Replace(" ", "").ToUpper())
-                                        {
-                                            if (!EditMode)
-                                            {
-                                                c.DataGridView[c.ColumnIndex, c.RowIndex].Value = table_name.IdTextBox.Text;
-                                            }
-                                            else if (c.DataGridView[c.ColumnIndex, c.RowIndex].Value.ToString().Length <= 1)
-                                            {
-                                                c.DataGridView[c.ColumnIndex, c.RowIndex].Value = table_name.IdTextBox.Text;
-                                            }
-                                        }
-
-                                        PropTable.Select("DataField='" + c.OwningColumn.DataPropertyName.Replace(" ", "") + "'")[0]["Value"] = c.DataGridView[c.ColumnIndex, c.RowIndex].Value;
-                                        PropTable.AcceptChanges();
-                                    }
+                                    c.Value = currentId;
+                                }
+                                else if (Convert.ToInt64(Convert.ToString(c.Value)) == 0)
+                                {
+                                    c.Value = currentId;
                                 }
                             }
-                        }
-                        catch (Exception ex)
-                        {
 
-                            MessageBox.Show(c.OwningColumn.DataPropertyName + " " + ex.Message);
-
+                            match[0]["Value"] = c.Value ?? DBNull.Value;
                         }
 
+                         
                     }
-                    
+                    foreach (DataRow mainRow in MainPropTable.Rows)
+                    {
+                        string dataField = Convert.ToString(mainRow["DataField"]);
+                        if (string.IsNullOrEmpty(dataField)) continue;
 
-                        //if (!GenerateID(table_name))
-                        //    return null;
-
-                        double n = 0;
-                        bool p = false;
-                        p = Double.TryParse(table_name.IdTextBox.Text, out n);
-                        if (p)
+                        DataRow[] matches = tempProp.Select($"DataField = '{dataField}'");
+                        if (matches.Length > 0)
                         {
-                            table_name.IdTextBox.Text = (n + 1).ToString();
-                            TableKeys[table_name.GetName()] = (long)n + 1;
+                            // Update columns from MainPropTable
+                            foreach (DataColumn col in MainPropTable.Columns)
+                            {
+                                if (!tempProp.Columns.Contains(col.ColumnName)) continue;
+                                matches[0][col.ColumnName] = mainRow[col];
+                            }
                         }
-                        cmdcol[i] = new SqlCommand(GenerateInsertQuery(table_name));
-                        i++;
-                     
-                }
-                return cmdcol;
-            }
+                    }
+                    SetDefaultValues(tempProp);
+                    // --- Step 3: Sync PropTable Metadata from MainPropTable ---
+                    foreach (DataRow sidRow in tempProp.Select("DataField = '"+  this.TableName.IdTextBox.DataField +"'"))
+                    {
+                        sidRow["Value"] = this.TableName.IdTextBox.Text ;
+                    }
+                    string qry = GenerateInsertQuery(table_name, tempProp);
+                    cmdList.Add(new SqlCommand(qry));
 
+                    currentId++;
+                    TableKeys[table_name.GetName()] = currentId;
+                    rowIndex++;
+                }
+
+                assignWatch.Stop();
+                LogTime($"Data processed: {rowIndex} rows, command build in {assignWatch.Elapsed.TotalSeconds:F2} sec");
+
+                sw.Stop();
+                LogTime($"GetDataGridviewValues completed in {sw.Elapsed.TotalSeconds:F2} sec total, commands: {cmdList.Count}");
+
+                // --- Step 7: Save Commands to File ---
+                string logFile = Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory,
+                    $"GeneratedCommands_{table_name.GetName()}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.sql"
+                );
+
+                using (StreamWriter writer = new StreamWriter(logFile, false, Encoding.UTF8))
+                {
+                    foreach (var cmd in cmdList)
+                    {
+                        writer.WriteLine(cmd.CommandText);
+                        writer.WriteLine("GO");
+                        writer.WriteLine();
+                    }
+                }
+
+                LogTime($"✅ Saved {cmdList.Count} SQL commands to {logFile}");
+                Console.WriteLine($"✅ Saved {cmdList.Count} SQL commands to: {logFile}");
+
+                return cmdList.ToArray();
+            }
             catch (Exception ex)
             {
-                General.ShowMessage("Error While getting grid values "+ table_name.ToString()+ ex.Message, "", MessageBoxIcon.Error);
+                LogTime($"❌ Error in GetDataGridviewValues: {ex.Message}");
+                General.ShowMessage($"Error while getting grid values for {table_name} → {ex.Message}", "", MessageBoxIcon.Error);
                 return null;
             }
+            finally
+            {
+                ResumeDrawing(table_name.DatagridView);
+                table_name.DatagridView.SummaryPaused = false;
+            }
         }
+         
 
+        private void LogTime(string message)
+        {
+            string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "timelog.txt");
+            File.AppendAllText(logPath, $"{DateTime.Now}: {message}{Environment.NewLine}");
+        }
         //private GrbTextBox GetIdentityTextbox(Table table_name)
         //{
         //    GrbTextBox idtext = new GrbTextBox();

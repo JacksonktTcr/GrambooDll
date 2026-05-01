@@ -678,10 +678,17 @@ namespace SAFA.Forms.SALE
         {
             //txtpaidAmount.Text = "";
             //TxtTotalWt.Text = "";
-            txtpaidAmount.Text = dgv.SummaryRow.SummaryCells["Payment Amount"].Text;
-            TxtTotalWt.Text = dgv.SummaryRow.SummaryCells["Gold Wt"].Text;
-            txttotamount.Text = dgv.SummaryRow.SummaryCells["Amount"].Text;
-            txt_totgst.Text = dgv.SummaryRow.SummaryCells["GST"].Text;
+            var paymentAmountCell = dgv.SummaryRow.SummaryCells["Payment Amount"];
+            txtpaidAmount.Text = paymentAmountCell?.Text ?? "0";
+            
+            var goldWtCell = dgv.SummaryRow.SummaryCells["Gold Wt"];
+            TxtTotalWt.Text = goldWtCell?.Text ?? "0";
+            
+            var amountCell = dgv.SummaryRow.SummaryCells["Amount"];
+            txttotamount.Text = amountCell?.Text ?? "0";
+            
+            var gstCell = dgv.SummaryRow.SummaryCells["GST"];
+            txt_totgst.Text = gstCell?.Text ?? "0";
         }
 
 

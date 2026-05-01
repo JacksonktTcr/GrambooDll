@@ -141,10 +141,20 @@ namespace Gramboo.Controls
         {
             int subWidth = 0;
             Rectangle textBounds;
+            string displayText = Text ?? "0";
 
-            if (!string.IsNullOrEmpty(formatString) && !string.IsNullOrEmpty(Text))
+            // ✅ FIX: Format the text if both format and text are available
+            try
             {
-                Text = String.Format("{0:" + formatString + "}", Convert.ToDecimal(Text));
+                if (!string.IsNullOrEmpty(formatString) && !string.IsNullOrEmpty(Text))
+                {
+                    displayText = String.Format("{0:" + formatString + "}", Convert.ToDecimal(Text));
+                }
+            }
+            catch
+            {
+                // If formatting fails, use original text
+                displayText = Text ?? "0";
             }
 
             textBounds = new Rectangle(this.ClientRectangle.X + 2, this.ClientRectangle.Y + 2, this.ClientRectangle.Width - 2, this.ClientRectangle.Height - 2);
@@ -155,7 +165,8 @@ namespace Gramboo.Controls
 
                 e.Graphics.FillRectangle(new SolidBrush(this.BackColor), this.ClientRectangle);
                 e.Graphics.DrawRectangle(pen, this.ClientRectangle.X, this.ClientRectangle.Y, this.ClientRectangle.Width - subWidth, this.ClientRectangle.Height - 1);
-                e.Graphics.DrawString(Text, Font, Brushes.Black, textBounds, format);
+                // ✅ FIX: Always draw the text, even if empty
+                e.Graphics.DrawString(displayText, Font, Brushes.Black, textBounds, format);
             }
         }
     }

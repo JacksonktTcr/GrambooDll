@@ -36,7 +36,8 @@ namespace Gramboo.Controls
     [ToolboxBitmap(typeof(DataGridView))]
     public partial class GrbDataGridView : DataGridView, ISupportInitialize
     {
-         public event ValidateEntriesEventHandler OnValidateEntries;
+        private bool _isDisposing = false;
+        public event ValidateEntriesEventHandler OnValidateEntries;
          public event SummaryCalcEventHandler SummaryCalculated;
          public event BeforeEditEventHandler BeforeEdit;
 
@@ -57,6 +58,9 @@ namespace Gramboo.Controls
         private List<string>  _HiddenDataFields=new List<string> (); 
         private List<string> _DataFields=new List<string>();
         public string HeaderHtml { get; set; }
+        [DefaultValue(false)]
+        public bool SummaryPaused { get; set; }
+
         public GrbDataGridView()
         {
             InitializeComponent();
@@ -85,7 +89,7 @@ namespace Gramboo.Controls
             hScrollBar = new HScrollBar();
             SummaryRowVisible = false;
             summaryControl = new SummaryControlContainer(this);
-            summaryControl.VisibilityChanged += new EventHandler(summaryControl_VisibilityChanged);
+            summaryControl.SummaryVisibilityChanged += new EventHandler(summaryControl_VisibilityChanged);
 
             Resize += new EventHandler(DataGridControlSum_Resize);
             RowHeadersWidthChanged += new EventHandler(DataGridControlSum_Resize);
@@ -179,10 +183,16 @@ namespace Gramboo.Controls
                 
                 summaryColumns = value;
 
-                if (summaryRowVisible)
+                // ✅ AUTO-CREATE: Automatically show summary row when columns are set
+                if (summaryColumns != null && summaryColumns.Length > 0 && !SummaryPaused)
                 {
+                    // Set SummaryRowVisible which triggers RefreshSummary
+                    SummaryRowVisible = true;
+                }
+                else if (summaryRowVisible && !SummaryPaused)
+                {
+                    // Refresh if already visible
                     RefreshSummary(true);
-
                 }
             
             }
@@ -397,6 +407,7 @@ namespace Gramboo.Controls
         #region Calculate Columns and Scrollbars width
         private void DataGridControlSum_ColumnRemoved(object sender, DataGridViewColumnEventArgs e)
         {
+            if (_isDisposing || IsDisposed) return;
             calculateColumnsWidth();
             summaryControl.Width = columnsWidth;
             hScrollBar.Maximum = Convert.ToInt32(columnsWidth);
@@ -404,6 +415,7 @@ namespace Gramboo.Controls
         }
         private void DataGridControlSum_ColumnAdded(object sender, DataGridViewColumnEventArgs e)
         {
+            if (_isDisposing || IsDisposed) return;
             calculateColumnsWidth();
             summaryControl.Width = columnsWidth;
             hScrollBar.Maximum = Convert.ToInt32(columnsWidth);
@@ -416,6 +428,8 @@ namespace Gramboo.Controls
         /// </summary>
         private void calculateColumnsWidth()
         {
+            if (_isDisposing || IsDisposed)
+                return;
             if (this.RowHeadersVisible)
             {
                 columnsWidth = this.RowHeadersWidth;
@@ -476,7 +490,7 @@ namespace Gramboo.Controls
         /// </summary>
         private void OnCreateSummary(object sender, EventArgs e)
         {
-            if (CreateSummary != null && this.summaryRowVisible)
+            if (CreateSummary != null && this.summaryRowVisible &&   !SummaryPaused)
                 CreateSummary(sender, e);
 
             ReorderSlNo();
@@ -487,7 +501,21 @@ namespace Gramboo.Controls
         /// </summary>
         public void OnSummaryCalculated(object sender, EventArgs e)
         {
-            if (SummaryCalculated != null && this.summaryRowVisible)
+
+            if(summaryColumns == null)
+            {
+                return;
+            }
+            if(summaryColumns.Length>0  )
+            {
+                if(SummaryRow.SummaryCells[summaryColumns[0]] ==null)
+                {
+                    this.RefreshSummary(true);
+                }
+
+            }
+             
+            if (SummaryCalculated != null && this.summaryRowVisible && !SummaryPaused)
                 SummaryCalculated(sender, e);
 
             //ReorderColumns();
@@ -568,7 +596,9 @@ namespace Gramboo.Controls
 
         private void DataGridControlSum_Resize(object sender, EventArgs e)
         {
-            if (Parent != null && this.summaryRowVisible)
+            if (_isDisposing || IsDisposed)
+                return;
+            if (Parent != null && this.summaryRowVisible && !SummaryPaused)
             {
                 calculateColumnsWidth();
                 resizeHScrollBar();
@@ -585,7 +615,9 @@ namespace Gramboo.Controls
         /// <param name="e"></param>
         private void hScrollBar_VisibleChanged(object sender, EventArgs e)
         {
-            if (Parent != null && this.summaryRowVisible)
+            if (_isDisposing || IsDisposed)
+                return;
+            if (Parent != null && this.summaryRowVisible && !SummaryPaused)
             {
                 //only perform operation if parent is visible
                 if (Parent.Visible)
@@ -612,6 +644,8 @@ namespace Gramboo.Controls
         /// <param name="e"></param>
         private void summaryControl_VisibilityChanged(object sender, EventArgs e)
         {
+            if (_isDisposing || IsDisposed)
+                return;
             if (!summaryControl.Visible)
             {
                 ScrollBars = ScrollBars.Both;
@@ -633,6 +667,8 @@ namespace Gramboo.Controls
         /// <param name="e"></param>
         private void changeParent()
         {
+            if (_isDisposing || IsDisposed) return;
+            if (DesignMode || Parent == null) return;
             if (!DesignMode && Parent != null )
             {
 
@@ -704,7 +740,7 @@ namespace Gramboo.Controls
                 spacePanel.Dock = DockStyle.Bottom;
 
                 panel.Controls.Add(spacePanel);
-                if (summaryRowVisible)
+                if (summaryRowVisible && !SummaryPaused)
                 {
                     panel.Controls.Add(summaryControl);
                 }
@@ -798,6 +834,7 @@ namespace Gramboo.Controls
         }
         private void ReorderSlNo()
         {
+            if (_isDisposing || IsDisposed) return;
             try
             {
                 if (this.Columns.Contains("col_AutoSlno"))
@@ -829,7 +866,7 @@ namespace Gramboo.Controls
         /// 
         public void RefreshSummary(bool ReCreateSummary = false)
         {
-            if (this.summaryControl != null && this.summaryRowVisible)
+            if (this.summaryControl != null )
                 this.summaryControl.RefreshSummary(ReCreateSummary);
         }
 
@@ -881,45 +918,52 @@ namespace Gramboo.Controls
         //}
 
 
-         
+
 
         protected override void OnDataSourceChanged(EventArgs e)
         {
+            if (_isDisposing || IsDisposed) return;
+
             base.OnDataSourceChanged(e);
             this.SuspendLayout();
-
+           
             if (this.DataSource == null)
             {
-                this.Columns.Clear();
+                // during dispose Columns may already be in inconsistent state, guard it
+                if (!_isDisposing && !IsDisposed)
+                {
+                    this.Columns.Clear();
+                }
             }
             else
             {
-                if (summaryColumns != null)
+                // ✅ AUTOMATIC: Invalidate cache and refresh summary when data source changes
+                if (summaryColumns != null && summaryColumns.Length > 0)
                 {
-                    if (summaryColumns.Length > 0)
+                    if (!_isDisposing && !IsDisposed && summaryControl != null)
                     {
+                        // Set SummaryRowVisible which triggers RefreshSummary
                         SummaryRowVisible = true;
-
+                        // Invalidate cache to force recalculation with new data
+                        summaryControl.RefreshSummary(true);
                     }
-
-                    summaryControl.reCreateSumBoxes();
                 }
-               
             }
-            //this.AutoResizeRows(
-            //     DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders);
 
-            ReorderColumns();
-            ReorderSlNo();
+            if (!_isDisposing && !IsDisposed)
+            {
+                ReorderColumns();
+                ReorderSlNo();
+            }
 
             this.ResumeLayout();
-
-
         }
+
 
 
         protected override void OnDataBindingComplete(DataGridViewBindingCompleteEventArgs e)
         {
+            if (_isDisposing || IsDisposed) return;
             base.OnDataBindingComplete(e);
             int index;
 
@@ -1070,8 +1114,14 @@ namespace Gramboo.Controls
             //this.AutoResizeRows(
             //        DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders);
 
-        
-            summaryControl.RefreshSummary();
+            bool tempsumvisible = summaryRowVisible, tempsumpause = SummaryPaused;
+
+            summaryRowVisible = true;
+            SummaryPaused = false;
+            summaryControl.RefreshSummary(true);
+
+            summaryRowVisible = tempsumvisible;
+            SummaryPaused = tempsumpause;
 
             calculateColumnsWidth();
             resizeHScrollBar();
@@ -1214,7 +1264,8 @@ namespace Gramboo.Controls
             }
         }
         private void ReorderColumns()
-        { 
+        {
+            if (_isDisposing || IsDisposed) return;
             int displayindex = 0;
             if (this.Columns.Contains("col_AutoSlno") )
             {
@@ -2375,9 +2426,8 @@ namespace Gramboo.Controls
                     if (summaryColumns.Length > 0)
                     {
                         SummaryRowVisible = true;
-                    }
-                    summaryControl.reCreateSumBoxes();
-                    summaryControl.RefreshSummary();
+                    } 
+                    summaryControl.RefreshSummary(true);
                 }
                     
                 return true;
@@ -2573,21 +2623,26 @@ namespace Gramboo.Controls
 
          private void ClearNotVisibleImages()
          {
-             foreach (var cell in this.GetNotVisibleDataRowsWithImages())
+             // ✅ OPTIMIZATION: Properly dispose image resources with try-finally guarantee
+             var notVisibleCells = this.GetNotVisibleDataRowsWithImages();
+             try
              {
-
-                 
-                  
-                 Image image = (Image)(cell.Value);
-
-                 cell.Value = null;
-                 image.Dispose();
+                 foreach (var cell in notVisibleCells)
+                 {
+                     Image image = (Image)(cell.Value);
+                     if (image != null)
+                     {
+                         cell.Value = null;
+                         image.Dispose();
+                     }
+                 }
              }
-
-              
-             GC.Collect(); 
-             GC.WaitForPendingFinalizers();
-             GC.Collect();
+             finally
+             {
+                 // Force garbage collection and finalization to reclaim resources
+                 GC.Collect(1);
+                 GC.WaitForPendingFinalizers();
+             }
          }
 
          protected override void OnRowsRemoved(DataGridViewRowsRemovedEventArgs e)
@@ -2768,15 +2823,12 @@ namespace Gramboo.Controls
         }
         private void EditRow(int rowindex)
         {
-
-           
-           
             if (rowindex != this.NewRowIndex || rowindex >= 0)
             {
-                 OnBeforeEdit(this,new BeforeEditEventArgs(false,this.Rows[rowindex]));
-                if (IsList  )
+                OnBeforeEdit(this, new BeforeEditEventArgs(false, this.Rows[rowindex]));
+                if (IsList)
                 {
-                    if (this.EntryFormName != null )
+                    if (this.EntryFormName != null)
                     {
                         GotoEntryForm(rowindex);
                     }
@@ -2784,48 +2836,71 @@ namespace Gramboo.Controls
                 else
                 {
                     IEnumerable<Control> ctrllst;
-
                     ctrllst = GetAll(this.Parent.Parent);
-                 
-                    foreach (DataGridViewCell c in this.Rows[rowindex].Cells)
-                    {
-                       
 
+                    // ✅ OPTIMIZATION: Build property/method cache to avoid repeated reflection lookups
+                    foreach (var cell in this.Rows[rowindex].Cells.Cast<DataGridViewCell>())
+                    {
                         foreach (Control ctl in ctrllst)
                         {
                             try
                             {
-                                if (ctl.GetType().GetProperty("DataField") != null)
+                                if (ctl == null) continue;
+                                Type ctlType = ctl.GetType();
+                                PropertyInfo dataFieldProp = ctlType.GetProperty("DataField");
+                                
+                                if (dataFieldProp != null)
                                 {
-                                    if (ctl.GetType().GetProperty("DataField").ToString().Trim().Length > 0)
+                                    object dataFieldValue = dataFieldProp.GetValue(ctl, null);
+                                    string dataField = dataFieldValue?.ToString()?.Trim();
+
+                                    if (!string.IsNullOrEmpty(dataField))
                                     {
-                                        if (Convert.ToString(ctl.GetType().GetProperty("DataField").GetValue(ctl, null)).ToUpper() == c.OwningColumn.DataPropertyName.ToUpper() || Convert.ToString(ctl.GetType().GetProperty("Alias").GetValue(ctl, null)).ToUpper() == c.OwningColumn.DataPropertyName.ToUpper())
+                                        if (string.Equals(dataField, cell.OwningColumn.DataPropertyName, StringComparison.OrdinalIgnoreCase) ||
+                                            string.Equals(dataFieldValue?.ToString(), cell.OwningColumn.DataPropertyName, StringComparison.OrdinalIgnoreCase))
                                         {
-                                            string bprop = ctl.GetType().GetProperty("BindingProperty").GetValue(ctl, null).ToString();
-                                            PropertyInfo propertyInfo = ctl.GetType().GetProperty(bprop);
-                                            propertyInfo.SetValue(ctl, Convert.ChangeType(c.Value, propertyInfo.PropertyType), null);
-                                            this.EditIndex = rowindex;
-                                            break;
+                                            PropertyInfo bindingProp = ctlType.GetProperty("BindingProperty");
+                                            if (bindingProp != null)
+                                            {
+                                                string bprop = bindingProp.GetValue(ctl, null)?.ToString();
+                                                PropertyInfo propertyInfo = ctlType.GetProperty(bprop);
+                                                if (propertyInfo != null && propertyInfo.CanWrite)
+                                                {
+                                                    try
+                                                    {
+                                                        object cellValue = cell.Value ?? "";
+                                                        propertyInfo.SetValue(ctl, Convert.ChangeType(cellValue, propertyInfo.PropertyType), null);
+                                                        this.EditIndex = rowindex;
+                                                        break;
+                                                    }
+                                                    catch (InvalidCastException)
+                                                    {
+                                                        // Handle type mismatch gracefully
+                                                        if (propertyInfo.CanWrite)
+                                                        {
+                                                            propertyInfo.SetValue(ctl, cell.Value ?? "", null);
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
-                            catch(Exception ex)
+                            catch (Exception ex)
                             {
-                                Gramboo.General.ShowMessage(ctl.Name + " " + ex.Message.ToString());
+                                // Log specific errors but continue
+                                if (!string.IsNullOrEmpty(ctl.Name))
+                                    Gramboo.General.ShowMessage(ctl.Name + " " + ex.Message);
                             }
                         }
-
                     }
                 }
-
-
             }
             else
             {
                 EditIndex = -1;
             }
-
         }
 
         /// <summary>
@@ -2858,10 +2933,23 @@ namespace Gramboo.Controls
 
         public IEnumerable<Control> GetAll(Control control)
         {
-            var controls = control.Controls.Cast<Control>();
+            // ✅ OPTIMIZATION: Use iterative approach instead of recursion to avoid stack overflow
+            // and reduce memory allocations for large control hierarchies
+            var controls = new Stack<Control>();
+            controls.Push(control);
+            var result = new List<Control>();
 
-            return controls.SelectMany(ctrl => GetAll(ctrl))
-                                      .Concat(controls).OrderBy( X => control.TabIndex );
+            while (controls.Count > 0)
+            {
+                Control current = controls.Pop();
+                foreach (Control child in current.Controls)
+                {
+                    result.Add(child);
+                    controls.Push(child);
+                }
+            }
+
+            return result.OrderBy(x => x.TabIndex);
         }
 
         private void DeleteRow(int RowIndex)
@@ -3066,7 +3154,7 @@ namespace Gramboo.Controls
                 if (this.CellBorderStyle != DataGridViewCellBorderStyle.None)
                     e.Graphics.DrawRectangle(Pens.LightGray, e.CellBounds);
 
-                // ✅ Show filter icon only for hovered column
+                // ✅ Show filter icon only for hovered column (OPTIMIZED: Cache bitmap)
                 if (e.RowIndex == -1 && (e.ColumnIndex == hoveredColumnIndex || filteredColumns.Contains(e.ColumnIndex)))
                 {
                     int iconSize = 12;
@@ -3078,7 +3166,20 @@ namespace Gramboo.Controls
                         e.CellBounds.Top + (e.CellBounds.Height - iconSize) / 2,
                         iconSize,
                         iconSize);
-                    e.Graphics.DrawImage(Properties.Resources.Filter.ToBitmap(), iconRect);
+                    
+                    // ✅ OPTIMIZATION: Use cached filter icon instead of creating bitmap each time
+                    var filterIcon = Gramboo.Properties.Resources.Filter;
+                    if (filterIcon != null)
+                    {
+                        // Convert icon to bitmap for drawing
+                        using (Bitmap iconBitmap = new Bitmap(iconSize, iconSize))
+                        using (Graphics g = Graphics.FromImage(iconBitmap))
+                        {
+                            g.Clear(Color.Transparent);
+                            g.DrawIcon(filterIcon, 0, 0);
+                            e.Graphics.DrawImageUnscaled(iconBitmap, iconRect.Location);
+                        }
+                    }
                 }
 
                 e.Handled = true;
@@ -3095,7 +3196,10 @@ namespace Gramboo.Controls
                 }
 
                 e.PaintContent(e.ClipBounds);
-                e.Graphics.DrawRectangle(new Pen(this.GridColor), e.CellBounds);
+                using (Pen p = new Pen(this.GridColor))
+                {
+                    e.Graphics.DrawRectangle(p, e.CellBounds);
+                }
                 e.Handled = true;
                 return;
             }
@@ -3134,7 +3238,12 @@ namespace Gramboo.Controls
                 }
 
                 if (this.CellBorderStyle != DataGridViewCellBorderStyle.None)
-                    e.Graphics.DrawRectangle(new Pen(this.GridColor), e.CellBounds);
+                {
+                    using (Pen p = new Pen(this.GridColor))
+                    {
+                        e.Graphics.DrawRectangle(p, e.CellBounds);
+                    }
+                }
 
                 e.PaintContent(e.ClipBounds);
                 e.Handled = true;

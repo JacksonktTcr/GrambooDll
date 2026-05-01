@@ -23,23 +23,29 @@ namespace WindowsFormsApplication5
 
         private void ShowNewForm(object sender, EventArgs e)
         {
-            //JMS.Forms.SAL t = new JMS.Forms.SALE.frmSalesList();
-            //// t.MdiParent = this;
-            //t.ShowDialog();
-
-            //FA.GroupMaster f = new FA.GroupMaster();
-            ////f.MdiParent = this;
-            //f.Show();
-            GeneralConfig.BranchId = 101;
+            //    //JMS.Forms.SAL t = new JMS.Forms.SALE.frmSalesList();
+            //    //// t.MdiParent = this;
+            //    //t.ShowDialog();
+            GeneralConfig.BranchId = 109;
             GeneralConfig.CompanyID = 1;
             GeneralConfig.UserName = "sa";
             GeneralConfig.EnableAuditTrail = true;
-             Gramboo.Classes.ConfigureServers servCon = new Gramboo.Classes.ConfigureServers();
+            Gramboo.Classes.ConfigureServers servCon = new Gramboo.Classes.ConfigureServers();
             servCon.GenerateSQLConfigureServersString();
-
-            WindowsFormsApplication5.checkdgv s = new checkdgv();
-           // s.MdiParent = this;
-            s.Show();
+            SAFA.Forms.SALE.FrmSchemePaymentEntry frmSchemePayment =new SAFA.Forms.SALE.FrmSchemePaymentEntry();
+            frmSchemePayment.ShowDialog();
+            //    //FA.GroupMaster f = new FA.GroupMaster();
+            //    ////f.MdiParent = this;
+            //    //f.Show();
+            //    GeneralConfig.BranchId = 101;
+            //    GeneralConfig.CompanyID = 1;
+            //    GeneralConfig.UserName = "sa";
+            //    GeneralConfig.EnableAuditTrail = true;
+            //     Gramboo.Classes.ConfigureServers servCon = new Gramboo.Classes.ConfigureServers();
+            //    servCon.GenerateSQLConfigureServersString();
+            // ThemeCreator.ThemeSetting s = new ThemeCreator.ThemeSetting();
+            //// s.MdiParent = this;
+            // s.Show();
 
         }
 

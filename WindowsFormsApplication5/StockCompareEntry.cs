@@ -184,12 +184,23 @@ namespace Kallans.Forms.STOCK
 
         private void dgv_SummaryCalculated(object source, EventArgs e)
         {
-            txtTotPhyNo.Text = dgv.SummaryRow.SummaryCells["Physical No"].Text;
-            txtTotPhyWt.Text = dgv.SummaryRow.SummaryCells["Physical Wt"].Text;
-            txtphydiawt.Text = dgv.SummaryRow.SummaryCells["Physical DiaWt"].Text;
-            txtTotNos.Text = dgv.SummaryRow.SummaryCells["Qty"].Text;
-            TxtTotWt.Text = dgv.SummaryRow.SummaryCells["Wt"].Text;
-            txtdiawt.Text = dgv.SummaryRow.SummaryCells["DiaWt"].Text;
+            var physicalNoCell = dgv.SummaryRow.SummaryCells["Physical No"];
+            txtTotPhyNo.Text = physicalNoCell?.Text ?? "0";
+            
+            var physicalWtCell = dgv.SummaryRow.SummaryCells["Physical Wt"];
+            txtTotPhyWt.Text = physicalWtCell?.Text ?? "0";
+            
+            var physicalDiaWtCell = dgv.SummaryRow.SummaryCells["Physical DiaWt"];
+            txtphydiawt.Text = physicalDiaWtCell?.Text ?? "0";
+            
+            var qtyCell = dgv.SummaryRow.SummaryCells["Qty"];
+            txtTotNos.Text = qtyCell?.Text ?? "0";
+            
+            var wtCell = dgv.SummaryRow.SummaryCells["Wt"];
+            TxtTotWt.Text = wtCell?.Text ?? "0";
+            
+            var diaWtCell = dgv.SummaryRow.SummaryCells["DiaWt"];
+            txtdiawt.Text = diaWtCell?.Text ?? "0";
         }
         public void AdjustColumnWidths()
         {
