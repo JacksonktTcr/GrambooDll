@@ -1557,11 +1557,11 @@ namespace Gramboo.Controls
                         DataRow[] matches = tempProp.Select($"DataField = '{dataField}'");
                         if (matches.Length > 0)
                         {
-                            // Update columns from MainPropTable
-                            foreach (DataColumn col in MainPropTable.Columns)
+                            // Take value from MainPropTable if data field matches
+                            object mainValue = mainRow["Value"];
+                            if (mainValue != null && mainValue != DBNull.Value)
                             {
-                                if (!tempProp.Columns.Contains(col.ColumnName)) continue;
-                                matches[0][col.ColumnName] = mainRow[col];
+                                matches[0]["Value"] = mainValue;
                             }
                         }
                     }
@@ -1585,24 +1585,24 @@ namespace Gramboo.Controls
                 sw.Stop();
                 LogTime($"GetDataGridviewValues completed in {sw.Elapsed.TotalSeconds:F2} sec total, commands: {cmdList.Count}");
 
-                // --- Step 7: Save Commands to File ---
-                string logFile = Path.Combine(
-                    AppDomain.CurrentDomain.BaseDirectory,
-                    $"GeneratedCommands_{table_name.GetName()}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.sql"
-                );
+                //// --- Step 7: Save Commands to File ---
+                //string logFile = Path.Combine(
+                //    AppDomain.CurrentDomain.BaseDirectory,
+                //    $"GeneratedCommands_{table_name.GetName()}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.sql"
+                //);
 
-                using (StreamWriter writer = new StreamWriter(logFile, false, Encoding.UTF8))
-                {
-                    foreach (var cmd in cmdList)
-                    {
-                        writer.WriteLine(cmd.CommandText);
-                        writer.WriteLine("GO");
-                        writer.WriteLine();
-                    }
-                }
+                //using (StreamWriter writer = new StreamWriter(logFile, false, Encoding.UTF8))
+                //{
+                //    foreach (var cmd in cmdList)
+                //    {
+                //        writer.WriteLine(cmd.CommandText);
+                //        writer.WriteLine("GO");
+                //        writer.WriteLine();
+                //    }
+                //}
 
-                LogTime($"✅ Saved {cmdList.Count} SQL commands to {logFile}");
-                Console.WriteLine($"✅ Saved {cmdList.Count} SQL commands to: {logFile}");
+                //LogTime($"✅ Saved {cmdList.Count} SQL commands to {logFile}");
+                //Console.WriteLine($"✅ Saved {cmdList.Count} SQL commands to: {logFile}");
 
                 return cmdList.ToArray();
             }

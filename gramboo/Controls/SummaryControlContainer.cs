@@ -5,6 +5,7 @@ using System.Windows.Forms;
 using System.Drawing;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Gramboo.Controls
 {
@@ -16,6 +17,9 @@ namespace Gramboo.Controls
         private readonly GrbDataGridView dgv;
         private readonly Label sumRowHeaderLabel;
         private SummaryCellCollection _summaryCells = new SummaryCellCollection();
+
+        // Guard to prevent re-entrant calls that can be triggered by layout/events
+        private bool _isRecreatingSumBoxes = false;
 
         private int initialHeight;
         private bool lastVisibleState;
@@ -35,6 +39,8 @@ namespace Gramboo.Controls
             set { initialHeight = value; }
         }
 
+        // (get_Item moved into SummaryCellCollection for compatibility)
+
         public bool LastVisibleState
         {
             get { return lastVisibleState; }
@@ -53,11 +59,19 @@ namespace Gramboo.Controls
             set { _summaryCells = value ?? new SummaryCellCollection(); }
         }
 
+        // Diagnostic accessor for external checks
+        internal bool IsRecreatingSumBoxes
+        {
+            get { return _isRecreatingSumBoxes; }
+        }
+
         // ✅ NEW: Public wrapper method for safe summary cell access
         public string GetTextOrZero(string columnName)
         {
             if (_summaryCells != null)
+            {
                 return _summaryCells.GetTextOrZero(columnName);
+            }
             return "0";
         }
 
@@ -308,20 +322,31 @@ namespace Gramboo.Controls
 
         internal void RefreshSummary(bool reCreateSummary = false)
         {
-            if (!dgv.SummaryRowVisible)
-                return;
+            if (!dgv.SummaryRowVisible) return;
 
-            // ✅ Always invalidate cache on refresh to ensure fresh calculations
             cacheValid = false;
-            
+
             if (reCreateSummary)
+            {
                 reCreateSumBoxes();
+                return; // let reCreateSumBoxesInternal schedule calcSummaries via BeginInvoke
+            }
 
             calcSummaries();
         }
 
         public void reCreateSumBoxes()
         {
+            reCreateSumBoxesInternal();
+        }
+
+        private void reCreateSumBoxesInternal()
+        {
+            // Prevent re-entrant calls which can be triggered by layout/events
+            if (_isRecreatingSumBoxes)
+                return;
+
+            _isRecreatingSumBoxes = true;
             this.SuspendLayout();
 
             try
@@ -338,13 +363,30 @@ namespace Gramboo.Controls
 
                 if (dgv.DisplaySumRowHeader)
                 {
-                    sumRowHeaderLabel.Font = new Font(
-                        dgv.DefaultCellStyle.Font,
-                        dgv.SumRowHeaderTextBold ? FontStyle.Bold : FontStyle.Regular);
+                    // Avoid assigning Font unnecessarily (can trigger layout events)
+                    var desiredStyle = dgv.SumRowHeaderTextBold ? FontStyle.Bold : FontStyle.Regular;
+                    var baseFont = dgv.DefaultCellStyle.Font ?? this.Font;
+
+                    bool needNewFont = sumRowHeaderLabel.Font == null
+                        || sumRowHeaderLabel.Font.Style != desiredStyle
+                        || !sumRowHeaderLabel.Font.FontFamily.Equals(baseFont.FontFamily)
+                        || Math.Abs(sumRowHeaderLabel.Font.Size - baseFont.Size) > 0.01f;
+
+                    if (needNewFont)
+                    {
+                        try
+                        {
+                            sumRowHeaderLabel.Font = new Font(baseFont, desiredStyle);
+                        }
+                        catch
+                        {
+                            // fallback: keep existing font if new creation fails
+                        }
+                    }
 
                     sumRowHeaderLabel.Anchor = AnchorStyles.Left;
                     sumRowHeaderLabel.TextAlign = ContentAlignment.MiddleLeft;
-                    sumRowHeaderLabel.Height = sumRowHeaderLabel.Font.Height;
+                        sumRowHeaderLabel.Height = sumRowHeaderLabel.Font.Height;
                     sumRowHeaderLabel.Top = Convert.ToInt32((double)(this.InitialHeight - sumRowHeaderLabel.Height) / 2D);
                     sumRowHeaderLabel.Text = dgv.SumRowHeaderText;
                     sumRowHeaderLabel.ForeColor = dgv.DefaultCellStyle.ForeColor;
@@ -423,14 +465,21 @@ namespace Gramboo.Controls
 
                     _summaryCells.Add(sumBox);
                 }
+               
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine(ex.Message.ToString());
+                
             }
             finally
             {
                 this.ResumeLayout();
+                _isRecreatingSumBoxes = false;
             }
 
-            calcSummaries();
-            resizeSumBoxes();
+            try { calcSummaries(); } catch { }
+            try { resizeSumBoxes(); } catch { }
         }
 
         public void resizeSumBoxes()
@@ -550,6 +599,9 @@ namespace Gramboo.Controls
         // ✅ OPTIMIZATION: Calculate only the affected column instead of recalculating all
         private void calcSingleColumnSummary(DataGridViewColumn column)
         {
+            if (_isRecreatingSumBoxes)
+                return;
+
             if (!dgv.SummaryRowVisible || dgv.SummaryPaused)
                 return;
 
@@ -560,68 +612,140 @@ namespace Gramboo.Controls
             decimal total = CalculateColumnTotal(column.Index);
             sumBox.Tag = total;
             sumBox.Text = FormatSummaryValue(total, sumBox.FormatString);
-            sumBox.Invalidate();  // ✅ Force repaint
-            
+            sumBox.Invalidate();
             dgv.OnSummaryCalculated(dgv, EventArgs.Empty);
         }
 
+        // Guard to prevent overlapping background calculations
+        private bool _calcPending = false;
+
         private void calcSummaries()
         {
+            if (_isRecreatingSumBoxes)
+                return;
+
             if (!dgv.SummaryRowVisible || dgv.SummaryPaused)
                 return;
 
             if (sumBoxMap.Count == 0)
                 return;
 
-            // ✅ OPTIMIZATION: Check if cache is still valid BEFORE invalidating it
             if (cacheValid && summaryCache.Count > 0)
             {
-                // Apply cached values without recalculation
                 ApplyCachedSummaries();
                 dgv.OnSummaryCalculated(dgv, EventArgs.Empty);
                 return;
             }
 
-            // Initialize all summary boxes with "0" as fallback
+            // Reset boxes to "0" immediately on the UI thread
             foreach (ReadOnlyTextBox box in sumBoxMap.Values)
             {
-                if (!box.IsSummary)
-                    continue;
-
-                box.Tag = 0m;
-                box.Text = "0";
+                if (box.IsSummary)
+                {
+                    box.Tag = 0m;
+                    box.Text = "0";
+                }
             }
 
-            // If no data or no summary columns, stop here
             if (dgv.Rows.Count == 0 || dgv.SummaryColumns == null || dgv.SummaryColumns.Length == 0)
             {
-                cacheValid = false;  // ✅ Invalidate cache when no data
+                cacheValid = false;
                 dgv.OnSummaryCalculated(dgv, EventArgs.Empty);
                 return;
             }
 
-            // Recalculate all summaries
-            summaryCache.Clear();
+            // If a calculation is already running, just mark cache invalid and let it finish
+            if (_calcPending)
+            {
+                cacheValid = false;
+                return;
+            }
+
+            _calcPending = true;
+            cacheValid = false;
+
+            // Snapshot the data needed for calculation so the background thread
+            // does not touch live UI/DataGridView objects
+            var snapshot = SnapshotColumnData();
+
+            Task.Run(() =>
+            {
+                var results = new Dictionary<int, decimal>();
+                foreach (var entry in snapshot)
+                {
+                    decimal total = 0m;
+                    foreach (object val in entry.Value)
+                    {
+                        decimal parsed;
+                        if (TryConvertToDecimal(val, out parsed))
+                            total += parsed;
+                    }
+                    results[entry.Key] = total;
+                }
+                return results;
+            }).ContinueWith(task =>
+            {
+                _calcPending = false;
+
+                if (task.IsFaulted || task.IsCanceled)
+                    return;
+
+                var results = task.Result;
+
+                if (_isRecreatingSumBoxes)
+                    return;
+
+                summaryCache.Clear();
+                foreach (var kvp in results)
+                    summaryCache[kvp.Key] = kvp.Value;
+
+                foreach (KeyValuePair<DataGridViewColumn, ReadOnlyTextBox> kvp in sumBoxMap)
+                {
+                    ReadOnlyTextBox sumBox = kvp.Value;
+                    if (sumBox == null || !sumBox.IsSummary)
+                        continue;
+
+                    decimal total;
+                    if (results.TryGetValue(kvp.Key.Index, out total))
+                    {
+                        sumBox.Tag = total;
+                        sumBox.Text = FormatSummaryValue(total, sumBox.FormatString);
+                        sumBox.Invalidate();
+                    }
+                }
+
+                cacheValid = true;
+                dgv.OnSummaryCalculated(dgv, EventArgs.Empty);
+
+            }, TaskScheduler.FromCurrentSynchronizationContext());
+        }
+
+        // Snapshots cell values for summary columns so the background thread
+        // never touches live DataGridView objects (not thread-safe).
+        // Key = column index, Value = list of raw cell values.
+        private Dictionary<int, List<object>> SnapshotColumnData()
+        {
+            var snapshot = new Dictionary<int, List<object>>();
 
             foreach (KeyValuePair<DataGridViewColumn, ReadOnlyTextBox> kvp in sumBoxMap)
             {
-                DataGridViewColumn column = kvp.Key;
-                ReadOnlyTextBox sumBox = kvp.Value;
-
-                if (sumBox == null || !sumBox.IsSummary)
+                if (kvp.Value == null || !kvp.Value.IsSummary)
                     continue;
 
-                decimal total = CalculateColumnTotal(column.Index);
-                summaryCache[column.Index] = total;
-                
-                sumBox.Tag = total;
-                sumBox.Text = FormatSummaryValue(total, sumBox.FormatString);
-                sumBox.Invalidate();  // ✅ Force repaint
+                int colIndex = kvp.Key.Index;
+                var values = new List<object>(dgv.Rows.Count);
+
+                foreach (DataGridViewRow row in dgv.Rows)
+                {
+                    if (row == null || row.IsNewRow)
+                        continue;
+                    values.Add(row.Cells[colIndex].Value);
+                }
+
+                snapshot[colIndex] = values;
             }
 
-            // ✅ Mark cache as valid only after successful calculation
-            cacheValid = true;
-            dgv.OnSummaryCalculated(dgv, EventArgs.Empty);
+            return snapshot;
         }
 
         // ✅ OPTIMIZATION: Extracted calculation logic for reuse
@@ -833,7 +957,10 @@ namespace Gramboo.Controls
             }
         }
 
-        // ✅ PRIMARY: String indexer returns ReadOnlyTextBox for backward compatibility with old compiled code
+        // ✅ PRIMARY: String indexer returns ReadOnlyTextBox for binary compatibility with older compiled code.
+        // Matches against DataPropertyName OR Name so the lookup doesn't spuriously
+        // return null when callers pass the column Name (which previously triggered
+        // an infinite RefreshSummary -> calcSummaries -> OnSummaryCalculated loop).
         public ReadOnlyTextBox this[string columnName]
         {
             get
@@ -841,10 +968,17 @@ namespace Gramboo.Controls
                 if (string.IsNullOrWhiteSpace(columnName))
                     return null;
 
+                string key = columnName.Trim();
+
                 foreach (ReadOnlyTextBox t in summaryCells)
                 {
-                    if (string.Equals(t.DataPropertyName?.Trim(), columnName.Trim(), StringComparison.OrdinalIgnoreCase))
+                    if (t == null) continue;
+
+                    if (string.Equals(t.DataPropertyName?.Trim(), key, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(t.Name?.Trim(), key, StringComparison.OrdinalIgnoreCase))
+                    {
                         return t;
+                    }
                 }
 
                 return null;
@@ -857,14 +991,23 @@ namespace Gramboo.Controls
             if (string.IsNullOrWhiteSpace(columnName))
                 return null;
 
+            string key = columnName.Trim();
+
             foreach (ReadOnlyTextBox t in summaryCells)
             {
-                if (string.Equals(t.DataPropertyName?.Trim(), columnName.Trim(), StringComparison.OrdinalIgnoreCase))
+                if (t == null) continue;
+
+                if (string.Equals(t.DataPropertyName?.Trim(), key, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(t.Name?.Trim(), key, StringComparison.OrdinalIgnoreCase))
+                {
                     return t;
+                }
             }
 
             return null;
         }
+
+
 
         // ✅ NEW: Safe access method - TryGet pattern
         public bool TryGetCell(string columnName, out ReadOnlyTextBox cell)
