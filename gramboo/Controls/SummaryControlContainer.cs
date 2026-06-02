@@ -21,6 +21,11 @@ namespace Gramboo.Controls
         // Guard to prevent re-entrant calls that can be triggered by layout/events
         private bool _isRecreatingSumBoxes = false;
 
+        // True while we are inside the OnSummaryCalculated event invocation.
+        // Cell value changes made by event handlers must NOT trigger another
+        // full recalculation (would cause infinite loop).
+        private bool _inSummaryCalculatedEvent = false;
+
         private int initialHeight;
         private bool lastVisibleState;
         private Color summaryRowBackColor;
@@ -65,6 +70,16 @@ namespace Gramboo.Controls
             get { return _isRecreatingSumBoxes; }
         }
 
+        /// <summary>
+        /// Returns true while the summary is being recreated or a background
+        /// calculation is still pending. Exposed so GrbDataGridView can surface
+        /// this as a public property.
+        /// </summary>
+        internal bool IsSummaryCalculating
+        {
+            get { return _isRecreatingSumBoxes || _calcPending; }
+        }
+
         // ✅ NEW: Public wrapper method for safe summary cell access
         public string GetTextOrZero(string columnName)
         {
@@ -103,6 +118,7 @@ namespace Gramboo.Controls
             this.dgv.RowsAdded += dgv_RowsAdded;
             this.dgv.RowsRemoved += dgv_RowsRemoved;
             this.dgv.UserDeletingRow += dgv_UserDeletingRow;
+            this.dgv.RowStateChanged += dgv_RowStateChanged;
 
             this.VisibleChanged += SummaryControlContainer_VisibleChanged;
         }
@@ -129,6 +145,7 @@ namespace Gramboo.Controls
                     dgv.RowsAdded -= dgv_RowsAdded;
                     dgv.RowsRemoved -= dgv_RowsRemoved;
                     dgv.UserDeletingRow -= dgv_UserDeletingRow;
+                    dgv.RowStateChanged -= dgv_RowStateChanged;
                 }
 
                 this.VisibleChanged -= SummaryControlContainer_VisibleChanged;
@@ -154,9 +171,23 @@ namespace Gramboo.Controls
             ReadOnlyTextBox roTextBox;
             if (sumBoxMap.TryGetValue(column, out roTextBox) && roTextBox != null && roTextBox.IsSummary)
             {
-                // Invalidate cache and recalculate only affected column
+                // Invalidate cache. Update the affected column immediately for
+                // visual responsiveness, but do NOT raise SummaryCalculated here
+                // because only a single column has been recomputed. The event is
+                // raised once at the end of the full calcSummaries() pass below.
                 cacheValid = false;
                 calcSingleColumnSummary(column);
+
+                // If this cell change was caused by a SummaryCalculated handler
+                // writing back into the grid, do NOT start another full recalc
+                // (would loop forever). The current background calc, if any,
+                // will be re-run via _calcDirty when it completes.
+                if (_inSummaryCalculatedEvent)
+                    return;
+
+                // Trigger a full recalculation so SummaryCalculated fires exactly
+                // once when all summary columns are up to date.
+                calcSummaries();
             }
         }
 
@@ -234,6 +265,16 @@ namespace Gramboo.Controls
         private void dgv_UserDeletingRow(object sender, DataGridViewRowCancelEventArgs e)
         {
             cacheValid = false;
+        }
+
+        // ✅ NEW: Row visibility changed (e.g. filter applied) - invalidate cache and recalculate
+        private void dgv_RowStateChanged(object sender, DataGridViewRowStateChangedEventArgs e)
+        {
+            if (e.StateChanged == DataGridViewElementStates.Visible)
+            {
+                cacheValid = false;
+                calcSummaries();
+            }
         }
 
         #endregion
@@ -613,11 +654,14 @@ namespace Gramboo.Controls
             sumBox.Tag = total;
             sumBox.Text = FormatSummaryValue(total, sumBox.FormatString);
             sumBox.Invalidate();
-            dgv.OnSummaryCalculated(dgv, EventArgs.Empty);
+            // Do NOT raise SummaryCalculated here – this only updates a single
+            // column. The event must fire only when ALL summary columns have
+            // finished calculating (see calcSummaries()).
         }
 
         // Guard to prevent overlapping background calculations
         private bool _calcPending = false;
+        private bool _calcDirty = false;
 
         private void calcSummaries()
         {
@@ -632,36 +676,47 @@ namespace Gramboo.Controls
 
             if (cacheValid && summaryCache.Count > 0)
             {
+                // Just re-apply cached values to the UI. The calculation has
+                // ALREADY completed previously and SummaryCalculated was raised
+                // at that point – do NOT raise it again here.
                 ApplyCachedSummaries();
-                dgv.OnSummaryCalculated(dgv, EventArgs.Empty);
                 return;
             }
 
-            // Reset boxes to "0" immediately on the UI thread
-            foreach (ReadOnlyTextBox box in sumBoxMap.Values)
-            {
-                if (box.IsSummary)
-                {
-                    box.Tag = 0m;
-                    box.Text = "0";
-                }
-            }
+            // NOTE: Do NOT pre-zero the summary boxes here. Resetting to "0"
+            // before the background calculation completes causes any code that
+            // reads SummaryCells[...].Text in between to see "0" first and the
+            // real total a moment later (visible flicker / wrong reads).
+            // Previous totals stay on screen until the new ones are written.
 
             if (dgv.Rows.Count == 0 || dgv.SummaryColumns == null || dgv.SummaryColumns.Length == 0)
             {
-                cacheValid = false;
-                dgv.OnSummaryCalculated(dgv, EventArgs.Empty);
+                // Nothing to calculate. Zero out the boxes once here (this IS
+                // the final state) and mark cache valid so repeated calls
+                // don't spin. Do NOT raise SummaryCalculated – no real
+                // calculation took place.
+                foreach (ReadOnlyTextBox box in sumBoxMap.Values)
+                {
+                    if (box.IsSummary)
+                    {
+                        box.Tag = 0m;
+                        box.Text = FormatSummaryValue(0m, box.FormatString);
+                    }
+                }
+                cacheValid = true;
                 return;
             }
 
-            // If a calculation is already running, just mark cache invalid and let it finish
+            // If a calculation is already running, mark dirty so it re-runs with fresh data after finishing
             if (_calcPending)
             {
                 cacheValid = false;
+                _calcDirty = true;
                 return;
             }
 
             _calcPending = true;
+            _calcDirty = false;
             cacheValid = false;
 
             // Snapshot the data needed for calculation so the background thread
@@ -695,6 +750,16 @@ namespace Gramboo.Controls
                 if (_isRecreatingSumBoxes)
                     return;
 
+                // If cache was invalidated while the background task was running
+                // (e.g. more rows were hidden/shown during filtering), re-run with
+                // a fresh snapshot instead of applying the now-stale results.
+                if (_calcDirty)
+                {
+                    _calcDirty = false;
+                    calcSummaries();
+                    return;
+                }
+
                 summaryCache.Clear();
                 foreach (var kvp in results)
                     summaryCache[kvp.Key] = kvp.Value;
@@ -715,9 +780,27 @@ namespace Gramboo.Controls
                 }
 
                 cacheValid = true;
-                dgv.OnSummaryCalculated(dgv, EventArgs.Empty);
+                RaiseSummaryCalculated();
 
             }, TaskScheduler.FromCurrentSynchronizationContext());
+        }
+
+        // Raise SummaryCalculated with a guard so that handlers writing back to
+        // grid cells don't recursively trigger another full recalculation.
+        private void RaiseSummaryCalculated()
+        {
+            if (_inSummaryCalculatedEvent)
+                return;
+
+            _inSummaryCalculatedEvent = true;
+            try
+            {
+                dgv.OnSummaryCalculated(dgv, EventArgs.Empty);
+            }
+            finally
+            {
+                _inSummaryCalculatedEvent = false;
+            }
         }
 
         // Snapshots cell values for summary columns so the background thread
@@ -737,7 +820,7 @@ namespace Gramboo.Controls
 
                 foreach (DataGridViewRow row in dgv.Rows)
                 {
-                    if (row == null || row.IsNewRow)
+                    if (row == null || row.IsNewRow || !row.Visible)
                         continue;
                     values.Add(row.Cells[colIndex].Value);
                 }
@@ -755,7 +838,7 @@ namespace Gramboo.Controls
 
             foreach (DataGridViewRow row in dgv.Rows)
             {
-                if (row == null || row.IsNewRow)
+                if (row == null || row.IsNewRow || !row.Visible)
                     continue;
 
                 object value = row.Cells[colIndex].Value;

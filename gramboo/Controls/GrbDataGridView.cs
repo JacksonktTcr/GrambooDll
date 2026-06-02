@@ -71,6 +71,9 @@ namespace Gramboo.Controls
                 // When unpausing, trigger a refresh so totals are up to date
                 if (wasPaused && !_summaryPaused && summaryRowVisible && summaryControl != null)
                 {
+                    // Perform the column-width/scrollbar recalculation once, since it
+                    // was skipped for each column added while paused.
+                    UpdateColumnsWidthLayout();
                     RefreshSummary();
                 }
             }
@@ -248,12 +251,27 @@ namespace Gramboo.Controls
             }
         }
 
-                 [Browsable(true), Category("Summary")]
+        [Browsable(true), Category("Summary")]
         public SummaryControlContainer SummaryRow
         {
             get
             {
                 return summaryControl;
+            }
+        }
+
+        /// <summary>
+        /// Returns true while the summary row is being recreated or its totals
+        /// are still being calculated in the background.
+        /// Use this in a SummaryCalculated event handler to skip work that
+        /// should not run until the summary is fully ready.
+        /// </summary>
+        [Browsable(false)]
+        public bool IsSummaryCalculating
+        {
+            get
+            {
+                return summaryControl != null && summaryControl.IsSummaryCalculating;
             }
         }
     
@@ -438,18 +456,35 @@ namespace Gramboo.Controls
         #region Calculate Columns and Scrollbars width
         private void DataGridControlSum_ColumnRemoved(object sender, DataGridViewColumnEventArgs e)
         {
-            if (_isDisposing || IsDisposed) return;
-            calculateColumnsWidth();
-            summaryControl.Width = columnsWidth;
-            hScrollBar.Maximum = Convert.ToInt32(columnsWidth);
-            resizeHScrollBar();
+            UpdateColumnsWidthLayout();
         }
         private void DataGridControlSum_ColumnAdded(object sender, DataGridViewColumnEventArgs e)
         {
+            UpdateColumnsWidthLayout();
+        }
+
+        /// <summary>
+        /// Recalculates the total columns width and updates the summary control and
+        /// horizontal scrollbar. While the summary is paused (e.g. during bulk column
+        /// setup) the work is skipped and performed once when the summary is resumed,
+        /// avoiding an O(n^2) recalculation as each column is added. The width and
+        /// scrollbar maximum are only assigned when they actually change to avoid
+        /// triggering redundant layout passes.
+        /// </summary>
+        private void UpdateColumnsWidthLayout()
+        {
             if (_isDisposing || IsDisposed) return;
+            if (SummaryPaused) return;
+
             calculateColumnsWidth();
-            summaryControl.Width = columnsWidth;
-            hScrollBar.Maximum = Convert.ToInt32(columnsWidth);
+
+            if (summaryControl.Width != columnsWidth)
+                summaryControl.Width = columnsWidth;
+
+            int maximum = Convert.ToInt32(columnsWidth);
+            if (hScrollBar.Maximum != maximum)
+                hScrollBar.Maximum = maximum;
+
             resizeHScrollBar();
         }
 
@@ -538,44 +573,41 @@ namespace Gramboo.Controls
         private const int MaxSummaryRecreateAttempts = 2;
 
         /// <summary>
-        /// Calls the CalculateSummary event
+        /// Calls the CalculateSummary event.
+        /// Guards against re-entrancy, premature firing (cells not yet created),
+        /// and firing while a background calculation is still in progress.
         /// </summary>
         public void OnSummaryCalculated(object sender, EventArgs e)
         {
             if (_isDisposing || IsDisposed) return;
 
-            if (summaryColumns == null)
-            {
+            // Nothing to do if summary columns have not been configured.
+            if (summaryColumns == null || summaryColumns.Length == 0)
                 return;
-            }
 
-            // Prevent re-entrancy: if we're already inside this handler higher up
-            // the stack, just raise the public event and bail out.
+            // Re-entrancy guard: return silently so the event is NOT fired twice.
+            // The outer call will raise SummaryCalculated when it finishes.
             if (_inSummaryCalculated)
-            {
-                if (SummaryCalculated != null && this.summaryRowVisible && !SummaryPaused)
-                    SummaryCalculated(sender, e);
                 return;
-            }
 
             _inSummaryCalculated = true;
             try
             {
-                if (summaryColumns.Length > 0
-                    && SummaryRow != null
+                // If the summary boxes don't exist yet, schedule a recreate on the
+                // message loop and bail out WITHOUT raising SummaryCalculated.
+                // Raising the event now would hand callers null/empty cells.
+                if (SummaryRow != null
                     && !SummaryRow.IsRecreatingSumBoxes
                     && !_summaryRecreateScheduled
                     && _summaryRecreateAttempts < MaxSummaryRecreateAttempts
                     && SummaryRow.SummaryCells[summaryColumns[0]] == null)
                 {
-                    // Defer the recreate to the message loop so we unwind the
-                    // current call chain (calcSummaries -> OnSummaryCalculated).
-                    // Calling RefreshSummary(true) synchronously here causes
-                    // unbounded recursion and a StackOverflowException.
                     _summaryRecreateScheduled = true;
                     _summaryRecreateAttempts++;
                     try
                     {
+                        // Defer so we fully unwind the current call chain before
+                        // re-entering RefreshSummary (avoids StackOverflowException).
                         this.BeginInvoke((MethodInvoker)(() =>
                         {
                             try
@@ -591,30 +623,37 @@ namespace Gramboo.Controls
                     }
                     catch
                     {
-                        // If BeginInvoke fails (handle not created yet), just
-                        // clear the flag; do NOT call RefreshSummary here as
-                        // that would re-enter this method synchronously.
+                        // BeginInvoke can fail if the handle has not been created yet.
+                        // Clear the flag; do NOT call RefreshSummary synchronously here
+                        // as that would re-enter this method and cause recursion.
                         _summaryRecreateScheduled = false;
                     }
-                }
-                else if (SummaryRow != null
-                         && summaryColumns.Length > 0
-                         && SummaryRow.SummaryCells[summaryColumns[0]] != null)
-                {
-                    // Successful resolution - reset retry counter so future
-                    // legitimate data-source changes can re-trigger recreate.
-                    _summaryRecreateAttempts = 0;
+
+                    // Cells are not ready yet – do not raise SummaryCalculated.
+                    return;
                 }
 
-                if (SummaryCalculated != null && this.summaryRowVisible && !SummaryPaused)
+                // Cells resolved successfully: reset the retry counter so future
+                // legitimate data-source changes can trigger a recreate again.
+                if (SummaryRow != null && SummaryRow.SummaryCells[summaryColumns[0]] != null)
+                    _summaryRecreateAttempts = 0;
+
+                // Only raise the public event when:
+                //   • the summary row is visible and not paused
+                //   • no background calculation is still running (IsSummaryCalculating)
+                //   • subscribers exist
+                if (SummaryCalculated != null
+                    && summaryRowVisible
+                    && !SummaryPaused
+                    && !IsSummaryCalculating)
+                {
                     SummaryCalculated(sender, e);
+                }
             }
             finally
             {
                 _inSummaryCalculated = false;
             }
-
-            //ReorderColumns();
         }
         #endregion
 
@@ -1054,6 +1093,7 @@ namespace Gramboo.Controls
             {
                 ReorderColumns();
                 ReorderSlNo();
+
             }
 
             this.ResumeLayout();
@@ -1090,9 +1130,9 @@ namespace Gramboo.Controls
                         }
                     }
                 }
-               
                 PerformFilter();
                 ReorderSlNo();
+                 
             }  
 
 
@@ -1245,15 +1285,15 @@ namespace Gramboo.Controls
             this.DoubleBuffered = true;
             SqlCommand cmd = new SqlCommand();
 
-            string fldlst="";
-           // if (this.DataFields==null)
-                
+            string fldlst = "";
+            // if (this.DataFields==null)
+
             foreach (string s in this.DataFields)
             {
-                fldlst +=  (fldlst.Length == 0 ? "" : ",") + s ;
+                fldlst += (fldlst.Length == 0 ? "" : ",") + s;
             }
 
-            string orderby="";
+            string orderby = "";
 
             if (order.Length > 0)
             {
@@ -1278,7 +1318,7 @@ namespace Gramboo.Controls
                     }
                 }
             }
-            cmd.CommandText = "select " + (criteria=="1=2"?" TOP 1 ":"")+ (fldlst.Length == 0 ? "*" : fldlst) + " from " + table_name.GetName() + (criteria.Length == 0 ? "" : " WHERE " + criteria) + orderby;
+            cmd.CommandText = "select " + (criteria == "1=2" ? " TOP 1 " : "") + (fldlst.Length == 0 ? "*" : fldlst) + " from " + table_name.GetName() + (criteria.Length == 0 ? "" : " WHERE " + criteria) + orderby;
             cmd.CommandType = CommandType.Text;
 
             try
@@ -1302,15 +1342,15 @@ namespace Gramboo.Controls
                 //        }
                 //    }
                 //}
-                if (((DataTable)this.DataSource).Rows.Count>0)
+                if (((DataTable)this.DataSource).Rows.Count > 0)
                 {
                     Console.WriteLine(table_name.GetName());
                 }
 
                 this.SummaryRowVisible = temp;
-           this.RefreshSummary( );
+                this.RefreshSummary();
 
-        
+
                 this.ResumeLayout();
             }
             catch (Exception ex)
@@ -1564,6 +1604,7 @@ namespace Gramboo.Controls
                 {
                     (this.DataSource as DataTable).DefaultView.RowFilter = filterBuilder.ToString();
                 }
+               // summaryControl.RefreshSummary();
             }
             catch (Exception ex)
             {
@@ -1571,9 +1612,10 @@ namespace Gramboo.Controls
                 {
                     Filters.Remove(Filters[Filters.Count - 1]);
                     PerformFilter();
+                    //summaryControl.RefreshSummary();
                 }
                 General.ShowMessage(ex.Message.ToString());
-            }
+            } 
         }
 
         private void AddDateFilters(ContextMenuStrip contxt)

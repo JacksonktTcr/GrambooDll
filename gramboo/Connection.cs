@@ -18,6 +18,11 @@ namespace Gramboo.Controls
 
         MyConfigHandler configSection;
 
+        // Decryption is expensive, so the decrypted database properties are
+        // cached after the first read. The cache is refreshed whenever the
+        // properties are rewritten via WriteDatabaseProperties.
+        private bool _propertiesLoaded = false;
+
 
         public Connection()
         {
@@ -36,6 +41,10 @@ namespace Gramboo.Controls
         /// </summary>
         public void ReadDatabaseProperties()
         {
+            // Database properties are decrypted only once and then cached.
+            if (_propertiesLoaded)
+                return;
+
             try
             {
 
@@ -45,6 +54,8 @@ namespace Gramboo.Controls
                 DatabseName = Cryptography.DecryptString(configSection.DBProperties.DatabaseName);
                 DBUsername = Cryptography.DecryptString(configSection.DBProperties.DBUserName);
                 DBPassword = Cryptography.DecryptString(configSection.DBProperties.DBPassword);
+
+                _propertiesLoaded = true;
             }
             catch (Exception ex)
             {
@@ -72,6 +83,15 @@ namespace Gramboo.Controls
                 configSection.DBProperties.DBUserName = Cryptography.EncryptString(DBUserName);
                 configSection.DBProperties.DBPassword = Cryptography.EncryptString(DBPassword);
                 configSection.Save();
+
+                // Refresh the cache with the plaintext values just written so the
+                // next ReadDatabaseProperties does not have to decrypt again.
+                this.ServerName = ServerName;
+                this.DatabseName = DatabaseName;
+                this.DBUsername = DBUserName;
+                this.DBPassword = DBPassword;
+                _propertiesLoaded = true;
+
                 if(!hidemessage)
                 General.ShowMessage("Database Configured Successfully","Database");
 

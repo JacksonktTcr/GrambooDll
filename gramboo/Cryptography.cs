@@ -15,6 +15,13 @@ namespace Gramboo
         static readonly string SaltKey = "S@LT&KEY";
         static readonly string VIKey = "@1B2c3D4e5F6g7H8";
 
+        // The key and IV are derived from constant inputs, so the result is always
+        // identical. Derive them once (the PBKDF2 key derivation is intentionally
+        // expensive) and reuse the cached values on every Encrypt/Decrypt call.
+        static readonly byte[] KeyBytes =
+            new Rfc2898DeriveBytes(PasswordHash, Encoding.ASCII.GetBytes(SaltKey)).GetBytes(256 / 8);
+        static readonly byte[] IVBytes = Encoding.ASCII.GetBytes(VIKey);
+
         public static string EncryptString(string plainText)
         {
             try
@@ -22,9 +29,9 @@ namespace Gramboo
 
                 byte[] plainTextBytes = Encoding.UTF8.GetBytes(plainText);
 
-                byte[] keyBytes = new Rfc2898DeriveBytes(PasswordHash, Encoding.ASCII.GetBytes(SaltKey)).GetBytes(256 / 8);
+                byte[] keyBytes = KeyBytes;
                 var symmetricKey = new RijndaelManaged() { Mode = CipherMode.CBC, Padding = PaddingMode.Zeros };
-                var encryptor = symmetricKey.CreateEncryptor(keyBytes, Encoding.ASCII.GetBytes(VIKey));
+                var encryptor = symmetricKey.CreateEncryptor(keyBytes, IVBytes);
 
                 byte[] cipherTextBytes;
 
@@ -53,10 +60,10 @@ namespace Gramboo
             try
             {
                 byte[] cipherTextBytes = Convert.FromBase64String(encryptedText);
-                byte[] keyBytes = new Rfc2898DeriveBytes(PasswordHash, Encoding.ASCII.GetBytes(SaltKey)).GetBytes(256 / 8);
+                byte[] keyBytes = KeyBytes;
                 var symmetricKey = new RijndaelManaged() { Mode = CipherMode.CBC, Padding = PaddingMode.None };
 
-                var decryptor = symmetricKey.CreateDecryptor(keyBytes, Encoding.ASCII.GetBytes(VIKey));
+                var decryptor = symmetricKey.CreateDecryptor(keyBytes, IVBytes);
                 var memoryStream = new MemoryStream(cipherTextBytes);
                 var cryptoStream = new CryptoStream(memoryStream, decryptor, CryptoStreamMode.Read);
                 byte[] plainTextBytes = new byte[cipherTextBytes.Length];

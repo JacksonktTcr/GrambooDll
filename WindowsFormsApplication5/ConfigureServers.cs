@@ -1,5 +1,4 @@
-﻿ 
-using Gramboo;
+﻿using Gramboo;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -29,6 +28,8 @@ namespace REGAL.Classes
 
         ServerConfigHandler configSection;
 
+        private static ConfigureServers _cachedConfig = null;
+        private static bool _isCacheValid = false;
 
         public ConfigureServers()
         {
@@ -43,33 +44,65 @@ namespace REGAL.Classes
         { get; set; }
 
         /// <summary>
+        /// Invalidates the cached database properties, forcing a re-read on next access
+        /// </summary>
+        public static void InvalidateCache()
+        {
+            _isCacheValid = false;
+            _cachedConfig = null;
+        }
+
+        /// <summary>
         /// Reads Database Properties and decrypts details
         /// </summary>
         public void ReadDatabaseProperties()
         {
             try
             {
+                if (_isCacheValid && _cachedConfig != null)
+                {
+                    DbAServerName       = _cachedConfig.DbAServerName;
+                    DbADBName           = _cachedConfig.DbADBName;
+                    DbLAServerName      = _cachedConfig.DbLAServerName;
+                    DbLADBName          = _cachedConfig.DbLADBName;
+                    DbBServerName       = _cachedConfig.DbBServerName;
+                    DbBDBName           = _cachedConfig.DbBDBName;
+                    DbAServerPassword   = _cachedConfig.DbAServerPassword;
+                    DbBServerPassword   = _cachedConfig.DbBServerPassword;
+                    DbLAServerPassword  = _cachedConfig.DbLAServerPassword;
+                    return;
+                }
 
                 configSection = ServerConfigHandler.Open();
 
-                DbAServerName = Cryptography.DecryptString(configSection.ServerProperties.DbAServerName);
-                DbADBName = Cryptography.DecryptString(configSection.ServerProperties.DbADBName);
-                DbLAServerName = Cryptography.DecryptString(configSection.ServerProperties.DbLAServerName);
-                DbLADBName = Cryptography.DecryptString(configSection.ServerProperties.DbLADBName);
-                DbBServerName = Cryptography.DecryptString(configSection.ServerProperties.DbBServerName);
-                DbBDBName = Cryptography.DecryptString(configSection.ServerProperties.DbBDBName);
-                DbAServerPassword = Cryptography.DecryptString(configSection.ServerProperties.DbAPassword);
-                DbBServerPassword = Cryptography.DecryptString(configSection.ServerProperties.DbBPassword);
-                DbLAServerPassword = Cryptography.DecryptString(configSection.ServerProperties.DbLAPassword);
+                DbAServerName       = Cryptography.DecryptString(configSection.ServerProperties.DbAServerName);
+                DbADBName           = Cryptography.DecryptString(configSection.ServerProperties.DbADBName);
+                DbLAServerName      = Cryptography.DecryptString(configSection.ServerProperties.DbLAServerName);
+                DbLADBName          = Cryptography.DecryptString(configSection.ServerProperties.DbLADBName);
+                DbBServerName       = Cryptography.DecryptString(configSection.ServerProperties.DbBServerName);
+                DbBDBName           = Cryptography.DecryptString(configSection.ServerProperties.DbBDBName);
+                DbAServerPassword   = Cryptography.DecryptString(configSection.ServerProperties.DbAPassword);
+                DbBServerPassword   = Cryptography.DecryptString(configSection.ServerProperties.DbBPassword);
+                DbLAServerPassword  = Cryptography.DecryptString(configSection.ServerProperties.DbLAPassword);
+
+                _cachedConfig = new ConfigureServers
+                {
+                    DbAServerName      = this.DbAServerName,
+                    DbADBName          = this.DbADBName,
+                    DbLAServerName     = this.DbLAServerName,
+                    DbLADBName         = this.DbLADBName,
+                    DbBServerName      = this.DbBServerName,
+                    DbBDBName          = this.DbBDBName,
+                    DbAServerPassword  = this.DbAServerPassword,
+                    DbBServerPassword  = this.DbBServerPassword,
+                    DbLAServerPassword = this.DbLAServerPassword
+                };
+                _isCacheValid = true;
             }
             catch (Exception ex)
             {
                 General.ShowMessage(ex.Message);
-
-
             }
-
-
         }
 
         /// <summary>
@@ -80,26 +113,22 @@ namespace REGAL.Classes
 
             try
             {
-
-                //DbAServerName = Cryptography.DecryptString(configSection.ServerProperties.DbAServerName);
-                //DbADBName = Cryptography.DecryptString(configSection.ServerProperties.DbADBName);
-                //DbLAServerName = Cryptography.DecryptString(configSection.ServerProperties.DbLAServerName);
-                //DbLADBName = Cryptography.DecryptString(configSection.ServerProperties.DbLADBName);
-                //DbBServerName = Cryptography.DecryptString(configSection.ServerProperties.DbBServerName);
-                //DbBDBName = Cryptography.DecryptString(configSection.ServerProperties.DbBDBName);
-
                 configSection = ServerConfigHandler.Open();
                 configSection.ServerProperties.DbAServerName = Cryptography.EncryptString(DbAServerName);
-                configSection.ServerProperties.DbADBName = Cryptography.EncryptString(DbADBName);
+                configSection.ServerProperties.DbADBName     = Cryptography.EncryptString(DbADBName);
                 configSection.ServerProperties.DbLAServerName = Cryptography.EncryptString(DbLAServerName);
-                configSection.ServerProperties.DbLADBName = Cryptography.EncryptString(DbLADBName);
+                configSection.ServerProperties.DbLADBName    = Cryptography.EncryptString(DbLADBName);
                 configSection.ServerProperties.DbBServerName = Cryptography.EncryptString(DbBServerName);
-                configSection.ServerProperties.DbBDBName = Cryptography.EncryptString(DbBDBName);
-                configSection.ServerProperties.DbAPassword = Cryptography.EncryptString(DbAServerPassword);
-                configSection.ServerProperties.DbBPassword = Cryptography.EncryptString(DbBServerPassword);
-                configSection.ServerProperties.DbLAPassword = Cryptography.EncryptString(DbLAServerPassword);
+                configSection.ServerProperties.DbBDBName     = Cryptography.EncryptString(DbBDBName);
+                configSection.ServerProperties.DbAPassword   = Cryptography.EncryptString(DbAServerPassword);
+                configSection.ServerProperties.DbBPassword   = Cryptography.EncryptString(DbBServerPassword);
+                configSection.ServerProperties.DbLAPassword  = Cryptography.EncryptString(DbLAServerPassword);
 
                 configSection.Save();
+
+                // Invalidate cache so next read picks up new values
+                InvalidateCache();
+
                 General.ShowMessage("Database Configured Successfully","Database");
 
                 return true;
@@ -159,11 +188,6 @@ namespace REGAL.Classes
                     catch (SqlException ex)
                     {
                         General.ShowMessage(ex.Message, "", MessageBoxIcon.Error);
-                        //if (DbLAServerName.Trim().Length == 0 || DbLADBName.Trim().Length == 0)
-                        //{
-                        //    ReadDatabaseProperties();
-                        //    if (DbLAServerName.Trim().Length == 0 || DbLADBName.Trim().Length == 0)
-                        //    {
                         if (frmServerSetting.Show(ref DbAServerName, ref  DbADBName, ref DbLAServerName, ref DbLADBName, ref DbBServerName, ref DbBDBName, ref DbLAServerPassword, ref DbAServerPassword,ref DbLAServerPassword) == DialogResult.Cancel)
                         {
                             Application.Exit();
@@ -173,10 +197,7 @@ namespace REGAL.Classes
                             this.WriteDatabaseProperties(DbAServerName, DbADBName, DbLAServerName, DbLADBName, DbBServerName, DbBDBName,DbAServerPassword,DbBServerPassword,DbLAServerPassword);
                             GenerateSQLConfigureServersString();
                         }
-                        //    }
-                        //}
 
-                        //throw new Exception("New Wxcep");
                         this.ConfigureServersString = "";
                     }
 
