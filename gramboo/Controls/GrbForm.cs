@@ -233,6 +233,13 @@ namespace Gramboo.Controls
                 CreatePropertyTable(this.TableName);
                 MainPropTable = PropTable.Copy();
 
+                // Do not take values from controls bound to a datagridview - their values come from the grid
+                foreach (DataRow r in MainPropTable.Select("BindToDataGridview='True'"))
+                {
+                    MainPropTable.Rows.Remove(r);
+                }
+                MainPropTable.AcceptChanges();
+
 
                 //if (EditMode == false)
                 //    EditMode = GetEditMode(this.TableName);
@@ -388,26 +395,47 @@ namespace Gramboo.Controls
                 }
 
 
-                try
+                int saveRetryCount = 0;
+                int maxSaveRetries = 3;
+                int saveDelayMs = 100;
+
+                while (saveRetryCount < maxSaveRetries)
                 {
-                    bool p = false;
+                    try
+                    {
+                        bool p = false;
 
-                    saveflag= DBConn.ExecuteSqlTransaction(cmdColl, this.TableName.GetName(), ref  p);
-                     
-                }
-                catch (SqlException ex)
-                {
-                    ShowMessage(ex.Message);
-
-                    MessageBox.Show(ex.ToString());
-
-
-                    saveflag = false;
-                }
-                catch (Exception ex1)
-                {
-                    ShowMessage("Error while saving " + ex1.Message);
-                    saveflag = false;
+                        saveflag = DBConn.ExecuteSqlTransaction(cmdColl, this.TableName.GetName(), ref p);
+                        break;
+                    }
+                    catch (SqlException ex)
+                    {
+                        if (ex.Number == 1205)
+                        {
+                            saveRetryCount++;
+                            if (saveRetryCount >= maxSaveRetries)
+                            {
+                                ShowMessage("Deadlock occurred while saving after " + maxSaveRetries + " retries. Please try again.");
+                                MessageBox.Show("Deadlock Error: " + ex.ToString());
+                                saveflag = false;
+                                break;
+                            }
+                            Thread.Sleep(saveDelayMs * saveRetryCount);
+                        }
+                        else
+                        {
+                            ShowMessage(ex.Message);
+                            MessageBox.Show(ex.ToString());
+                            saveflag = false;
+                            break;
+                        }
+                    }
+                    catch (Exception ex1)
+                    {
+                        ShowMessage("Error while saving " + ex1.Message);
+                        saveflag = false;
+                        break;
+                    }
                 }
                 if (saveflag  )
                 {
@@ -571,23 +599,60 @@ namespace Gramboo.Controls
                     cmdcol.Add(new SqlCommand(GenerateDeleteQuery(t)));
                 }
 
-                if (DBConn.ExecuteSqlTransaction(cmdcol, this.TableName.GetName()))
-                {
-                    
-                    if (chkSaveQuery.Checked)
-                    {
-                        SaveQueryStack(cmdcol);
-                    }
-                    General.ShowMessage("Data Deleted");
-                    Init();
+                int deleteRetryCount = 0;
+                int maxDeleteRetries = 3;
+                int deleteDelayMs = 100;
+                bool deleteSuccess = false;
 
-                    return true;
-                }
-                else
+                while (deleteRetryCount < maxDeleteRetries)
                 {
-                    General.ShowMessage("Failed to Delete", "", MessageBoxIcon.Error);
-                    return false;
+                    try
+                    {
+                        if (DBConn.ExecuteSqlTransaction(cmdcol, this.TableName.GetName()))
+                        {
+                            if (chkSaveQuery.Checked)
+                            {
+                                SaveQueryStack(cmdcol);
+                            }
+                            General.ShowMessage("Data Deleted");
+                            Init();
+                            deleteSuccess = true;
+                            break;
+                        }
+                        else
+                        {
+                            General.ShowMessage("Failed to Delete", "", MessageBoxIcon.Error);
+                            break;
+                        }
+                    }
+                    catch (SqlException sqlEx)
+                    {
+                        if (sqlEx.Number == 1205)
+                        {
+                            deleteRetryCount++;
+                            if (deleteRetryCount >= maxDeleteRetries)
+                            {
+                                General.ShowMessage("Deadlock occurred while deleting after " + maxDeleteRetries + " retries. Please try again.", "", MessageBoxIcon.Error);
+                                MessageBox.Show("Deadlock Error: " + sqlEx.ToString());
+                                break;
+                            }
+                            Thread.Sleep(deleteDelayMs * deleteRetryCount);
+                        }
+                        else
+                        {
+                            General.ShowMessage("SQL Error while deleting: " + sqlEx.Message, "", MessageBoxIcon.Error);
+                            MessageBox.Show(sqlEx.ToString());
+                            break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        General.ShowMessage("Error while deleting: " + ex.Message, "", MessageBoxIcon.Error);
+                        break;
+                    }
                 }
+
+                return deleteSuccess;
 
 
             }
@@ -628,9 +693,20 @@ namespace Gramboo.Controls
             // Make sure defaults are set before building query
             SetDefaultValues(tbl);
 
-            foreach (DataRow c in tbl.Rows)
+            // A column may appear only once in an INSERT column list.
+            // Non grid-bound rows win over grid-bound rows sharing the same DataField.
+            HashSet<string> emittedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            IEnumerable<DataRow> orderedRows = tbl.Rows.Cast<DataRow>()
+                .OrderBy(r => r["BindToDataGridview"] != DBNull.Value && Convert.ToBoolean(r["BindToDataGridview"]) ? 1 : 0);
+
+            foreach (DataRow c in orderedRows)
             {
-                string field = Convert.ToString(c["DataField"]);
+                string field = Convert.ToString(c["DataField"]).Trim();
+
+                // Skip empty fields and duplicates (first occurrence wins)
+                if (field.Length == 0 || !emittedFields.Add(field))
+                    continue;
+
                 string dataType = Convert.ToString(c["DataType"]);
                 object value = c["Value"];
 
@@ -697,7 +773,7 @@ namespace Gramboo.Controls
         {
             string qry = "";
 
-            string fieldlst = "";
+            StringBuilder fieldlst = new StringBuilder();
             string criteria = GetCriteria(table_name);
             string quote = ""; 
             object  defval = "";
@@ -705,18 +781,30 @@ namespace Gramboo.Controls
             SetDefaultValues();
 
             table_name.NotUpdatables.Add("DBID");
-            foreach (DataRow c in PropTable.Rows)
-            { 
-                if (table_name.NotUpdatables.Contains ( c["DataField"].ToString(),StringComparer.OrdinalIgnoreCase)==false  )
-                {
-                    quote = (General.TypesWithQuotes.Contains(c["DataType"].ToString(), StringComparer.OrdinalIgnoreCase) ? "'" : "");
 
-                    fieldlst += (fieldlst.Length == 0 ? "" : " , ") + c["DataField"] + "=" + quote + c["Value"].ToString().Replace("'", "''") + quote;
+            // A column may appear only once in the SET clause.
+            // Non grid-bound rows win over grid-bound rows sharing the same DataField.
+            HashSet<string> emittedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            IEnumerable<DataRow> orderedRows = PropTable.Rows.Cast<DataRow>()
+                .OrderBy(r => r["BindToDataGridview"] != DBNull.Value && Convert.ToBoolean(r["BindToDataGridview"]) ? 1 : 0);
 
-                }
+            foreach (DataRow c in orderedRows)
+            {
+                string field = Convert.ToString(c["DataField"]).Trim();
+
+                if (table_name.NotUpdatables.Contains(field, StringComparer.OrdinalIgnoreCase))
+                    continue;
+
+                // Skip empty fields and duplicates (first occurrence wins)
+                if (field.Length == 0 || !emittedFields.Add(field))
+                    continue;
+
+                quote = (General.TypesWithQuotes.Contains(c["DataType"].ToString(), StringComparer.OrdinalIgnoreCase) ? "'" : "");
+
+                fieldlst.Append(fieldlst.Length == 0 ? "" : " , ").Append(field).Append("=").Append(quote).Append(c["Value"].ToString().Replace("'", "''")).Append(quote);
             }
 
-            qry = "UPDATE  " + table_name.GetName() + " SET " + fieldlst +  (criteria.Length==0?"": " WHERE " + criteria );
+            qry = "UPDATE  " + table_name.GetName() + " SET " + fieldlst.ToString() +  (criteria.Length==0?"": " WHERE " + criteria );
 
 
             return qry;
@@ -767,32 +855,56 @@ namespace Gramboo.Controls
         public DataTable GetTableColumns(Table table_name)
         {
             DataTable dt = null;
+            int retryCount = 0;
+            int maxRetries = 3;
+            int delayMilliseconds = 100;
 
-             try
+            while (retryCount < maxRetries)
             {
+                try
+                {
+                    DataSet dset = new DataSet();
+                    SqlCommand cmd = new SqlCommand(table_name.DatabaseName + ".sys.sp_columns");
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.CommandTimeout = 30;
 
+                    cmd.Parameters.AddWithValue("@table_name", table_name.Name);
+                    cmd.Parameters.AddWithValue("@table_owner", table_name.OwnerName);
+                    DataController dc = new DataController(this);
+                    dset = dc.GetData(cmd, table_name.GetName(), dc.ConnectionProperties.ConnectionString);
 
-                DataSet dset = new DataSet();
-                SqlCommand cmd = new SqlCommand(table_name.DatabaseName +".sys.sp_columns");
-                cmd.CommandType = CommandType.StoredProcedure;
+                    if ((dset != null) && (dset.Tables.Count > 0))
+                        dt = dset.Tables[0];
 
-                cmd.Parameters.AddWithValue("@table_name", table_name.Name);
-                cmd.Parameters.AddWithValue("@table_owner", table_name.OwnerName );
-                DataController dc = new DataController(this);
-                dset = dc.GetData(cmd, table_name.GetName(), dc.ConnectionProperties.ConnectionString);
+                    return dt;
+                }
+                catch (SqlException sqlEx)
+                {
+                    if (sqlEx.Number == 1205)
+                    {
+                        retryCount++;
+                        if (retryCount >= maxRetries)
+                        {
+                            MessageBox.Show("Deadlock occurred while getting columns after " + maxRetries + " retries. " + sqlEx.ToString());
+                            throw new Exception("Deadlock Error: Unable to fetch table details after multiple attempts.\n" + sqlEx.Message);
+                        }
 
-
-                if ((dset != null) && (dset.Tables.Count > 0))
-                    dt = dset.Tables[0];
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error while getting columns " + ex.ToString());
-                throw new Exception("Error Occured While Fetching Table Details : \n" + ex.Message);
+                        Thread.Sleep(delayMilliseconds * retryCount);
+                    }
+                    else
+                    {
+                        MessageBox.Show("SQL Error while getting columns " + sqlEx.ToString());
+                        throw new Exception("SQL Error Occured While Fetching Table Details : \n" + sqlEx.Message);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error while getting columns " + ex.ToString());
+                    throw new Exception("Error Occured While Fetching Table Details : \n" + ex.Message);
+                }
             }
 
             return dt;
-
         }
 
         private void CreatePropertyTable(Table table_name)
@@ -806,10 +918,50 @@ namespace Gramboo.Controls
             PropTable.Columns.Add("DataType", typeof(string));
             PropTable.Columns.Add("Value", typeof(object));
             PropTable.Columns.Add("CheckDuplicate", typeof(bool));
+            PropTable.Columns.Add("BindToDataGridview", typeof(bool));
 
             GetValues(table_name);
 
         }
+
+        private void AddPropTableRow(DataTable tbl, DataRow dr)
+        {
+            string dataField = Convert.ToString(dr["DataField"]).Trim();
+
+            if (dataField.Length > 0)
+            {
+                                                                                                                                                                                                        bool bindToGrid = dr["BindToDataGridview"] != DBNull.Value && Convert.ToBoolean(dr["BindToDataGridview"]);
+
+                // Duplicate only when DataField AND BindToDataGridview both match.
+                // A grid-bound control may legitimately share a DataField with a non-grid control.
+                DataRow[] existing = tbl.Select(
+                    "DataField='" + dataField.Replace("'", "''") + "'" +
+                    " AND ISNULL(BindToDataGridview, false) = " + (bindToGrid ? "true" : "false"));
+
+                if (existing.Length > 0)
+                {
+                    string controlName = Convert.ToString(dr["ControlName"]).Trim();
+
+                    // Same DataField, same BindToDataGridview and same ControlName already exists - skip insert silently
+                    if (existing.Any(r => Convert.ToString(r["ControlName"]).Trim().Equals(controlName, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        return;
+                    }
+
+                    string ctrlNames = string.Join(", ", existing.Select(r => Convert.ToString(r["ControlName"]))
+                                                                 .Concat(new[] { Convert.ToString(dr["ControlName"]) })
+                                                                 .Distinct(StringComparer.OrdinalIgnoreCase));
+                    General.ShowMessage("Duplicate DataField '" + dataField + "' found. Controls with same DataField : " + ctrlNames, "", MessageBoxIcon.Warning);
+
+                    // Do not add the duplicate row - the first bound control keeps ownership
+                    // of the column so generated INSERT/UPDATE statements stay valid.
+                    return;
+                }
+            }
+
+            tbl.Rows.Add(dr);
+        }
+
         public IEnumerable<Control> GetAll(Control control)
         {
             var controls = control.Controls.Cast<Control>();
@@ -896,7 +1048,16 @@ namespace Gramboo.Controls
                                             dr["CheckDuplicate"] = false;
                                         }
 
-                                        PropTable.Rows.Add(dr);
+                                        if (type.GetProperty("BindToDataGridview") != null)
+                                        {
+                                            dr["BindToDataGridview"] = (bool)ctrl.GetType().GetProperty("BindToDataGridview").GetValue(ctrl, null);
+                                        }
+                                        else
+                                        {
+                                            dr["BindToDataGridview"] = false;
+                                        }
+
+                                        AddPropTableRow(PropTable, dr);
 
                                     }
                                 }
@@ -1401,6 +1562,23 @@ namespace Gramboo.Controls
             }
         }
 
+        private List<string> _commonFieldControlNames;
+
+        private bool IsCommonFieldControl(string controlName)
+        {
+            if (_commonFieldControlNames == null)
+            {
+                _commonFieldControlNames = new List<string>
+                {
+                    txtDbId.Name, txtCrUserId.Name, txtcreatedDate.Name, txtBranchID.Name,
+                    txtcompId.Name, txtCounterId.Name, txtModuserID.Name, txtUserName.Name,
+                    chkAuditTrial.Name, chkSaveQuery.Name, txtModifiedDate.Name
+                };
+            }
+
+            return _commonFieldControlNames.Contains(controlName, StringComparer.OrdinalIgnoreCase);
+        }
+
         private bool CheckDuplicates()
         {
             bool flag=true ;
@@ -1456,7 +1634,7 @@ namespace Gramboo.Controls
                         DataRow dr = PropTable.NewRow();
                         dr.ItemArray = r.ItemArray;
                         dr["TableName"] = MainPropTable.TableName;
-                        PropTable.Rows.Add(dr);
+                        AddPropTableRow(PropTable, dr);
                     }
                 }
 
@@ -1477,7 +1655,26 @@ namespace Gramboo.Controls
                         dr["DataType"] = dt.Select($"COLUMN_NAME='{df}'")[0]["TYPE_NAME"].ToString();
                         dr["Value"] = null;
                         dr["CheckDuplicate"] = false;
-                        PropTable.Rows.Add(dr);
+                        dr["BindToDataGridview"] = false;
+                        AddPropTableRow(PropTable, dr);
+                    }
+                }
+
+                // --- Step 3: Replace values from MainPropTable for matching DataFields ---
+                // Only controls set in GetCommonFieldValues may overwrite values
+                foreach (DataRow mainRow in MainPropTable.Rows)
+                {
+                    string mainField = Convert.ToString(mainRow["DataField"]);
+                    if (string.IsNullOrEmpty(mainField)) continue;
+
+                    if (!IsCommonFieldControl(Convert.ToString(mainRow["ControlName"]))) continue;
+
+                    object mainValue = mainRow["Value"];
+                    if (mainValue == null || mainValue == DBNull.Value) continue;
+
+                    foreach (DataRow propRow in PropTable.Select($"DataField='{mainField}'"))
+                    {
+                        propRow["Value"] = mainValue;
                     }
                 }
 
@@ -1554,10 +1751,12 @@ namespace Gramboo.Controls
                         string dataField = Convert.ToString(mainRow["DataField"]);
                         if (string.IsNullOrEmpty(dataField)) continue;
 
+                        if (!IsCommonFieldControl(Convert.ToString(mainRow["ControlName"]))) continue;
+
                         DataRow[] matches = tempProp.Select($"DataField = '{dataField}'");
                         if (matches.Length > 0)
                         {
-                            // Take value from MainPropTable if data field matches
+                            // Take value from MainPropTable only for common field controls
                             object mainValue = mainRow["Value"];
                             if (mainValue != null && mainValue != DBNull.Value)
                             {

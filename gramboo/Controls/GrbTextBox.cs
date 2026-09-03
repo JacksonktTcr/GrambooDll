@@ -487,7 +487,20 @@ namespace Gramboo.Controls
 		{
 			get
 			{
-                if (InputMask == Mask.Digit || InputMask == Mask.Decimal)
+                if (InputMask == Mask.Digit)
+                {
+                    double i;
+
+                    if (double.TryParse(base.Text, out i))
+                    {
+                        return i.ToString("0");
+                    }
+                    else
+                    {
+                        return "0";
+                    }
+                }
+                else if (InputMask == Mask.Decimal)
                 {
                     double i;
 
@@ -499,10 +512,6 @@ namespace Gramboo.Controls
                     {
                         return "0";
                     }
-
-                   
-
-
                 }
                 else
                 {

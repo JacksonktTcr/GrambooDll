@@ -2293,7 +2293,18 @@ namespace Gramboo.Controls
                 {
                     if (!HiddenDataFields.Contains(column.Name) && column.Visible == true && column.Name != "col_MoveUp" && column.Name != "col_MoveDown" && column.Name != "col_Delete" && column.Name != "col_Edit")
                     {
-                        html += "<th style='background-color: #B8DBFD;border: 1px solid #ccc'>" + SummaryRow.SummaryCells [column.Name].Text + "</th>";
+                        var summaryText = "";
+                        var sc = this.SummaryRow;
+                        if (sc != null)
+                        {
+                            // use safe accessor that returns "0" when missing, or use null-check below
+                            summaryText = sc.GetTextOrZero(column.Name);
+
+                            // OR explicit null-check:
+                            // var cell = sc.SummaryCells[column.Name];
+                            // summaryText = (cell != null && !string.IsNullOrEmpty(cell.Text)) ? cell.Text : "";
+                        }
+                        html += "<th style='background-color: #B8DBFD;border: 1px solid #ccc'>" + (summaryText =="0"?"":summaryText) + "</th>";
                     }
                 }
                 html += "</tr>";

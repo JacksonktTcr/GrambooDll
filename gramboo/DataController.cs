@@ -321,6 +321,7 @@ namespace Gramboo
                 {
                     foreach (SqlCommand _cmd in commandcollection)
                     {
+                        command.Parameters.Clear();
                         command.CommandText = _cmd.CommandText;
                         command.CommandType = _cmd.CommandType;
                         command.CommandTimeout = 30;
@@ -441,6 +442,7 @@ namespace Gramboo
                 {
                     foreach (SqlCommand _cmd in commandcollection)
                     {
+                        command.Parameters.Clear();
                         command.CommandText = _cmd.CommandText.Replace(ConnectionProperties.DatabseName,MirrorConnectionProperties.DatabseName);
                         command.CommandType = _cmd.CommandType;
                         command.CommandTimeout = 30;
@@ -538,6 +540,7 @@ namespace Gramboo
                 {
                     foreach (SqlCommand _cmd in commandcollection)
                     {
+                        command.Parameters.Clear();
                         command.CommandText = _cmd.CommandText.Replace(ConnectionProperties.DatabseName, MirrorConnectionProperties2.DatabseName);
                         command.CommandType = _cmd.CommandType;
                          command.CommandTimeout = 30;
