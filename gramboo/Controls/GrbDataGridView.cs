@@ -2868,33 +2868,35 @@ namespace Gramboo.Controls
             bs.DataSource=this.DataSource;
             Delflag = true;
 
-            bs.RemoveSort();
+            try
+            {
+                bs.RemoveSort();
 
-            DataRow RowToMove = dt.Rows[this.CurrentCell.RowIndex];
-            DataRow NewRow = dt.NewRow();
-            NewRow.ItemArray = RowToMove.ItemArray;
+                DataRow RowToMove = dt.Rows[this.CurrentCell.RowIndex];
+                DataRow NewRow = dt.NewRow();
+                NewRow.ItemArray = RowToMove.ItemArray;
 
+                int CurrentColumnIndex = this.CurrentCell.ColumnIndex;
+                Int32 NewIndex = Convert.ToInt32(CurrentCell.RowIndex - pos);
 
+                dt.Rows.RemoveAt(this.CurrentCell.RowIndex);
+                dt.Rows.InsertAt(NewRow, NewIndex);
+                dt.AcceptChanges();
 
+                //this.AutoGenerateColumns = true;
+                this.DataSource = dt;
+                //this.AutoGenerateColumns = false; 
+                //this.AutoResizeRows(
+                //DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders );
+                this.CurrentCell = this[CurrentColumnIndex, NewIndex];
 
-            int CurrentColumnIndex = this.CurrentCell.ColumnIndex;
-            Int32 NewIndex = Convert.ToInt32(CurrentCell.RowIndex - pos);
-
-            dt.Rows.RemoveAt(this.CurrentCell.RowIndex);
-
-            dt.Rows.InsertAt(NewRow, NewIndex);
-            dt.AcceptChanges();
-
-
-            //this.AutoGenerateColumns = true;
-            this.DataSource = dt;
-            //this.AutoGenerateColumns = false; 
-            //this.AutoResizeRows(
-            //DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders );
-            this.CurrentCell = this[CurrentColumnIndex, NewIndex];
-
-            //dt.Dispose();
-           // bs.Dispose();
+                //dt.Dispose();
+               // bs.Dispose();
+            }
+            finally
+            {
+                Delflag = false;
+            }
 
         }
          protected override void OnScroll(ScrollEventArgs e)
@@ -2953,6 +2955,11 @@ namespace Gramboo.Controls
              base.OnRowsRemoved(e);
             ReorderColumns();
             EditIndex = -1;
+
+            if (!_isDisposing && !IsDisposed && summaryControl != null && summaryRowVisible && !SummaryPaused)
+            {
+                summaryControl.RefreshSummary();
+            }
              
          }
         protected override void OnCellClick(DataGridViewCellEventArgs e)

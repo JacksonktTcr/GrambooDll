@@ -693,8 +693,7 @@ namespace Gramboo.Controls
             {
                 // Nothing to calculate. Zero out the boxes once here (this IS
                 // the final state) and mark cache valid so repeated calls
-                // don't spin. Do NOT raise SummaryCalculated – no real
-                // calculation took place.
+                // don't spin.
                 foreach (ReadOnlyTextBox box in sumBoxMap.Values)
                 {
                     if (box.IsSummary)
@@ -704,6 +703,7 @@ namespace Gramboo.Controls
                     }
                 }
                 cacheValid = true;
+                RaiseSummaryCalculated();
                 return;
             }
 
